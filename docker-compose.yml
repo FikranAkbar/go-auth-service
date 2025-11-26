@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: goauth_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret123
+      POSTGRES_DB: goauthdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d goauthdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  goose:
+    image: golang:1.23
+    container_name: goauth_goose
+    depends_on:
+      postgres:
+        condition: service_healthy     # wait until postgres is READY
+    volumes:
+      - .:/app
+    working_dir: /app
+    entrypoint: ["sh", "-c"]
+    command: >
+      "go install github.com/pressly/goose/v3/cmd/goose@latest &&
+       goose -dir migrations
+       postgres 'postgres://admin:secret123@postgres:5432/goauthdb?sslmode=disable'
+       up"
+
+volumes:
+  postgres_data:

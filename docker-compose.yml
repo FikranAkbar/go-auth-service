@@ -27,6 +27,9 @@ services:
       - .:/app
     working_dir: /app
     entrypoint: ["sh", "-c"]
+    environment:
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: postgres://admin:secret123@postgres:5432/goauthdb?sslmode=disable
     command: >
       "go install github.com/pressly/goose/v3/cmd/goose@latest &&
        goose -dir migrations

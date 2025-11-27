@@ -1,0 +1,11 @@
+database:
+  type: postgres
+  host: localhost
+  port: 5432
+  username: admin
+  password: secret123
+  name: goauthdb
+redis:
+  host: localhost
+  password:
+  port: 6379

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"go-auth-service/pkg/logger"
 	"os"
 	"strings"
@@ -70,7 +69,7 @@ func (l *envLoader) opt(key, def string) string {
 	return v
 }
 
-func loadFromEnv() (*Env, error) {
+func loadFromEnv() *Env {
 	l := &envLoader{}
 
 	cfg := &Env{
@@ -93,13 +92,13 @@ func loadFromEnv() (*Env, error) {
 	}
 
 	if len(l.errors) > 0 {
-		return nil, fmt.Errorf("errors required env vars: %s", strings.Join(l.errors, ", "))
+		logger.Fatalf("Missing required environment variables: %s", strings.Join(l.errors, ", "))
 	}
 
-	return cfg, nil
+	return cfg
 }
 
-func LoadServiceEnvironmentVariables() (*Env, error) {
+func LoadServiceEnvironmentVariables() *Env {
 	const (
 		configPath = `config.yaml`
 	)
@@ -108,22 +107,11 @@ func LoadServiceEnvironmentVariables() (*Env, error) {
 		return loadFromEnv()
 	}
 
-	cfg, err := loadFromYAML(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("load from yaml: %w", err)
-	}
+	cfg := loadFromYAML(configPath)
+	initializeServerConfig(cfg)
+	initializeDatabaseConfig(cfg)
 
-	err = initializeServerConfig(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("initialize server config: %w", err)
-	}
-
-	err = initializeDatabaseConfig(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("initialize database config: %w", err)
-	}
-
-	return cfg, nil
+	return cfg
 }
 
 func fileExists(path string) bool {
@@ -135,20 +123,21 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-func loadFromYAML(path string) (*Env, error) {
+func loadFromYAML(path string) *Env {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read yaml: %w", err)
+		logger.Fatalf("Error loading config file %s: %s", path, err)
 	}
 
 	var cfg Env
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("unmarshal yaml: %w", err)
+		logger.Fatalf("Error loading config file %s: %s", path, err)
 	}
-	return &cfg, nil
+
+	return &cfg
 }
 
-func initializeServerConfig(cfg *Env) error {
+func initializeServerConfig(cfg *Env) {
 	var (
 		err error
 	)
@@ -156,31 +145,25 @@ func initializeServerConfig(cfg *Env) error {
 	cfg.Server.ReadHeaderTimeout, err = time.ParseDuration(cfg.Server.ReadHeaderTimeoutDuration)
 	if err != nil {
 		logger.Fatalf("Failed to parse read header timeout duration: %v", err)
-		return err
 	}
 
 	cfg.Server.ReadTimeout, err = time.ParseDuration(cfg.Server.ReadTimeoutDuration)
 	if err != nil {
 		logger.Fatalf("Failed to parse read timeout duration: %v", err)
-		return err
 	}
 
 	cfg.Server.WriteTimeout, err = time.ParseDuration(cfg.Server.WriteTimeoutDuration)
 	if err != nil {
 		logger.Fatalf("Failed to parse write timeout duration: %v", err)
-		return err
 	}
 
 	cfg.Server.IdleTimeout, err = time.ParseDuration(cfg.Server.IdleTimeoutDuration)
 	if err != nil {
 		logger.Fatalf("Failed to parse idle timeout duration: %v", err)
-		return err
 	}
-
-	return nil
 }
 
-func initializeDatabaseConfig(cfg *Env) error {
+func initializeDatabaseConfig(cfg *Env) {
 	var (
 		err error
 	)
@@ -188,14 +171,10 @@ func initializeDatabaseConfig(cfg *Env) error {
 	cfg.Database.MaxConnectionLifetime, err = time.ParseDuration(cfg.Database.MaxConnectionLifetimeDuration)
 	if err != nil {
 		logger.Fatalf("Failed to parse max connection lifetime duration: %v", err)
-		return err
 	}
 
 	cfg.Database.MaxIdleConnectionLifetime, err = time.ParseDuration(cfg.Database.MaxIdleConnectionLifetimeDuration)
 	if err != nil {
 		logger.Fatalf("Failed to parse max idle connection lifetime duration: %v", err)
-		return err
 	}
-
-	return nil
 }

@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"go-auth-service/internal/config"
+	"go-auth-service/pkg/logger"
+
+	_ "github.com/lib/pq"
 )
 
-func NewPostgresDB(envs config.Env) (*sql.DB, error) {
+func NewPostgresDB(envs *config.Env) *sql.DB {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		envs.Database.Host,
 		envs.Database.Port,
@@ -16,10 +19,8 @@ func NewPostgresDB(envs config.Env) (*sql.DB, error) {
 
 	db, err := sql.Open(envs.Database.Type, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		logger.Fatalf("failed to open database: %v", err)
 	}
 
-	db.Set
-
-	return db, nil
+	return db
 }

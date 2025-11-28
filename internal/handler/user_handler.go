@@ -1,5 +1,11 @@
 package handler
 
-type UserHandler struct{}
+import "go-auth-service/internal/service"
 
-func NewUserHandler() *UserHandler { return &UserHandler{} }
+type UserHandler struct {
+	UserService *service.UserService
+}
+
+func NewUserHandler(userService *service.UserService) *UserHandler {
+	return &UserHandler{UserService: userService}
+}

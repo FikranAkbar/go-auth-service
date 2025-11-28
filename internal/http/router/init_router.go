@@ -12,7 +12,6 @@ import (
 func InitRouter(envs *config.Env, handlers ...interface{}) *chi.Mux {
 	var (
 		_ = handlers[0].(*handler.UserHandler)
-		_ = handlers[1].(*handler.AuthHandler)
 	)
 
 	r := chi.NewRouter()

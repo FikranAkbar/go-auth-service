@@ -2,15 +2,31 @@ package config
 
 import (
 	"fmt"
+	"go-auth-service/pkg/logger"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type Env struct {
+	Server   ServerConfig   `yaml:"server"`
 	Database DatabaseConfig `yaml:"database"`
 	Redis    RedisConfig    `yaml:"redis"`
+}
+
+type ServerConfig struct {
+	Addr              string        `yaml:"addr"`
+	ReadHeaderTimeout time.Duration `yaml:"-"`
+	ReadTimeout       time.Duration `yaml:"-"`
+	WriteTimeout      time.Duration `yaml:"-"`
+	IdleTimeout       time.Duration `yaml:"-"`
+
+	ReadHeaderTimeoutDuration string `yaml:"read_header_timeout_duration"`
+	ReadTimeoutDuration       string `yaml:"read_timeout_duration"`
+	WriteTimeoutDuration      string `yaml:"write_timeout_duration"`
+	IdleTimeoutDuration       string `yaml:"idle_timeout_duration"`
 }
 
 type DatabaseConfig struct {
@@ -29,13 +45,13 @@ type RedisConfig struct {
 }
 
 type envLoader struct {
-	missing []string
+	errors []string
 }
 
 func (l *envLoader) req(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
-		l.missing = append(l.missing, key)
+		l.errors = append(l.errors, key)
 	}
 	return v
 }
@@ -67,8 +83,8 @@ func loadFromEnv() (*Env, error) {
 		},
 	}
 
-	if len(l.missing) > 0 {
-		return nil, fmt.Errorf("missing required env vars: %s", strings.Join(l.missing, ", "))
+	if len(l.errors) > 0 {
+		return nil, fmt.Errorf("errors required env vars: %s", strings.Join(l.errors, ", "))
 	}
 
 	return cfg, nil
@@ -87,6 +103,12 @@ func LoadServiceEnvironmentVariables() (*Env, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load from yaml: %w", err)
 	}
+
+	err = initializeServerConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("initialize server config: %w", err)
+	}
+
 	return cfg, nil
 }
 
@@ -110,4 +132,36 @@ func loadFromYAML(path string) (*Env, error) {
 		return nil, fmt.Errorf("unmarshal yaml: %w", err)
 	}
 	return &cfg, nil
+}
+
+func initializeServerConfig(cfg *Env) error {
+	var (
+		err error
+	)
+
+	cfg.Server.ReadHeaderTimeout, err = time.ParseDuration(cfg.Server.ReadHeaderTimeoutDuration)
+	if err != nil {
+		logger.Fatalf("Failed to parse read header timeout duration: %v", err)
+		return err
+	}
+
+	cfg.Server.ReadTimeout, err = time.ParseDuration(cfg.Server.ReadTimeoutDuration)
+	if err != nil {
+		logger.Fatalf("Failed to parse read timeout duration: %v", err)
+		return err
+	}
+
+	cfg.Server.WriteTimeout, err = time.ParseDuration(cfg.Server.WriteTimeoutDuration)
+	if err != nil {
+		logger.Fatalf("Failed to parse write timeout duration: %v", err)
+		return err
+	}
+
+	cfg.Server.IdleTimeout, err = time.ParseDuration(cfg.Server.IdleTimeoutDuration)
+	if err != nil {
+		logger.Fatalf("Failed to parse idle timeout duration: %v", err)
+		return err
+	}
+
+	return nil
 }

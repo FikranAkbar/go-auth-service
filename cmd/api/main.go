@@ -3,26 +3,55 @@ package main
 import (
 	"context"
 	"go-auth-service/internal/config"
-	pkgLogger "go-auth-service/pkg/logger"
-	"log"
+	pLogger "go-auth-service/pkg/logger"
+	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
 	var (
-		ctx    = pkgLogger.ContextWithTraceID(context.Background(), `service-startup`)
-		logger = pkgLogger.WithContext(ctx)
+		err error
+
+		server *http.Server
 	)
 
-	// Load environment variables
-	envVariables := must(config.LoadServiceEnvironmentVariables())
-	logger.LogStruct("Environment variables loaded", envVariables)
-
-	logger.Info("API server is running...")
-}
-
-func must[T any](v T, err error) T {
+	pLogger.Info("Loading environment variables")
+	envVariables, err := config.LoadServiceEnvironmentVariables()
 	if err != nil {
-		log.Fatal(err)
+		pLogger.Fatalf("Failed to load environment variables: %v", err)
 	}
-	return v
+	pLogger.LogStruct("Environment variables loaded", envVariables)
+
+	pLogger.Info("Initialize server configurations...")
+	server = &http.Server{
+		Addr:              envVariables.Server.Addr,
+		ReadTimeout:       envVariables.Server.ReadTimeout,
+		WriteTimeout:      envVariables.Server.WriteTimeout,
+		IdleTimeout:       envVariables.Server.IdleTimeout,
+		ReadHeaderTimeout: envVariables.Server.ReadHeaderTimeout,
+	}
+	pLogger.Info("Server configurations initialized")
+
+	pLogger.Info("API server is running...")
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil {
+			pLogger.Errorf("Failed to start server: %v", err)
+		}
+
+		return
+	}()
+	defer stop()
+	<-ctx.Done()
+
+	contextTimeout, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := server.Shutdown(contextTimeout); err != nil {
+		pLogger.Fatalf("Failed to shutdown server gracefully: %v", err)
+	}
+
+	pLogger.Info("API server shutdown complete")
 }

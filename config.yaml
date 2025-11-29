@@ -1,3 +1,9 @@
+server:
+  read_timeout_duration: 10s
+  write_timeout_duration: 10s
+  idle_timeout_duration: 60s
+  read_header_timeout_duration: 10s
+  port: 8080
 database:
   type: postgres
   host: localhost

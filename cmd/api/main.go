@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"go-auth-service/internal/config"
+	"go-auth-service/internal/handler"
+	"go-auth-service/internal/http/router"
 	pLogger "go-auth-service/pkg/logger"
 	"net/http"
 	"os/signal"
@@ -14,7 +16,9 @@ func main() {
 	var (
 		err error
 
-		server *http.Server
+		server      *http.Server
+		userHandler *handler.UserHandler
+		authHandler *handler.AuthHandler
 	)
 
 	pLogger.Info("Loading environment variables")
@@ -24,9 +28,15 @@ func main() {
 	}
 	pLogger.LogStruct("Environment variables loaded", envVariables)
 
+	pLogger.Info("Creating handlers")
+	userHandler = handler.NewUserHandler()
+	authHandler = handler.NewAuthHandler()
+	pLogger.Info("Handlers created")
+
 	pLogger.Info("Initialize server configurations...")
 	server = &http.Server{
-		Addr:              envVariables.Server.Addr,
+		Handler:           router.InitRouter(envVariables, userHandler, authHandler),
+		Addr:              envVariables.Server.Port,
 		ReadTimeout:       envVariables.Server.ReadTimeout,
 		WriteTimeout:      envVariables.Server.WriteTimeout,
 		IdleTimeout:       envVariables.Server.IdleTimeout,
@@ -40,6 +50,7 @@ func main() {
 		err := server.ListenAndServe()
 		if err != nil {
 			pLogger.Errorf("Failed to start server: %v", err)
+			return
 		}
 
 		return

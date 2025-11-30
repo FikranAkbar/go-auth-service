@@ -17,7 +17,7 @@ type Env struct {
 }
 
 type ServerConfig struct {
-	Addr              string        `yaml:"addr"`
+	Port              string        `yaml:"port"`
 	ReadHeaderTimeout time.Duration `yaml:"-"`
 	ReadTimeout       time.Duration `yaml:"-"`
 	WriteTimeout      time.Duration `yaml:"-"`
@@ -80,6 +80,9 @@ func loadFromEnv() (*Env, error) {
 			Host:     l.req("REDIS_HOST"),
 			Port:     l.opt("REDIS_PORT", "6379"),
 			Password: l.req("REDIS_PASSWORD"),
+		},
+		Server: ServerConfig{
+			Port: l.opt("SERVER_ADDR", ":8080"),
 		},
 	}
 

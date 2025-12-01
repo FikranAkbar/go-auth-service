@@ -30,12 +30,18 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Type     string `yaml:"type"`
-	Host     string `yaml:"host"`
-	Port     string `yaml:"port"`
-	Name     string `yaml:"name"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Type                              string        `yaml:"type"`
+	Host                              string        `yaml:"host"`
+	Port                              string        `yaml:"port"`
+	Name                              string        `yaml:"name"`
+	Username                          string        `yaml:"username"`
+	Password                          string        `yaml:"password"`
+	MaxIdleConnections                string        `yaml:"max_idle_connections"`
+	MaxOpenConnections                string        `yaml:"max_open_connections"`
+	MaxIdleConnectionLifetimeDuration string        `yaml:"max_idle_connection_lifetime"`
+	MaxIdleConnectionLifetime         time.Duration `yaml:"-"`
+	MaxConnectionLifetimeDuration     string        `yaml:"max_connection_lifetime"`
+	MaxConnectionLifetime             time.Duration `yaml:"-"`
 }
 
 type RedisConfig struct {
@@ -112,6 +118,11 @@ func LoadServiceEnvironmentVariables() (*Env, error) {
 		return nil, fmt.Errorf("initialize server config: %w", err)
 	}
 
+	err = initializeDatabaseConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("initialize database config: %w", err)
+	}
+
 	return cfg, nil
 }
 
@@ -163,6 +174,26 @@ func initializeServerConfig(cfg *Env) error {
 	cfg.Server.IdleTimeout, err = time.ParseDuration(cfg.Server.IdleTimeoutDuration)
 	if err != nil {
 		logger.Fatalf("Failed to parse idle timeout duration: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func initializeDatabaseConfig(cfg *Env) error {
+	var (
+		err error
+	)
+
+	cfg.Database.MaxConnectionLifetime, err = time.ParseDuration(cfg.Database.MaxConnectionLifetimeDuration)
+	if err != nil {
+		logger.Fatalf("Failed to parse max connection lifetime duration: %v", err)
+		return err
+	}
+
+	cfg.Database.MaxIdleConnectionLifetime, err = time.ParseDuration(cfg.Database.MaxIdleConnectionLifetimeDuration)
+	if err != nil {
+		logger.Fatalf("Failed to parse max idle connection lifetime duration: %v", err)
 		return err
 	}
 

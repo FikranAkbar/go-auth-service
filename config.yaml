@@ -11,6 +11,10 @@ database:
   username: admin
   password: secret123
   name: goauthdb
+  max_idle_connections: 10
+  max_idle_connection_lifetime: 5m
+  max_open_connections: 20
+  max_connection_lifetime: 30m
 redis:
   host: localhost
   password:

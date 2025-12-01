@@ -30,6 +30,9 @@ include:
     - migration/
       - user.go -- Database migration for user table
       - session.go -- Database migration for session table
+  - infra/
+    - db.go -- Database connection and setup
+    - redis.go -- Redis connection for session management
   - service/
     - auth_service.go -- Core business rules: login, refresh, logout
     - user_service.go -- User CRUD, profile, etc.
@@ -37,9 +40,6 @@ include:
     - jwt_manager.go -- JWT token generation and validation
     - password_hasher.go -- Password hashing utilities
     - ....
-  - store/
-    - db.go -- Database connection and setup
-    - redis.go -- Redis connection for session management
 - pkg/
   - logger/
     - logger.go -- Pretty logger setup using zap

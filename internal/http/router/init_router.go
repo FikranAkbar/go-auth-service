@@ -3,7 +3,6 @@ package router
 import (
 	"go-auth-service/internal/config"
 	"go-auth-service/internal/handler"
-	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -11,7 +10,8 @@ import (
 
 func InitRouter(envs *config.Env, handlers ...interface{}) *chi.Mux {
 	var (
-		_ = handlers[0].(*handler.UserHandler)
+		_             = handlers[0].(*handler.UserHandler)
+		healthHandler = handlers[1].(*handler.HealthHandler)
 	)
 
 	r := chi.NewRouter()
@@ -22,10 +22,15 @@ func InitRouter(envs *config.Env, handlers ...interface{}) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(envs.Server.WriteTimeout))
 
-	r.Get(`/health`, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"up"}`))
-	})
+	// Health check endpoint
+	r.Get(`/health`, healthHandler.HealthCheck)
+
+	// Future user endpoints will be added here
+	// Example:
+	// r.Route("/api/v1/users", func(r chi.Router) {
+	//     r.Post("/", userHandler.CreateUser)
+	//     r.Get("/{id}", userHandler.GetUser)
+	// })
 
 	return r
 }

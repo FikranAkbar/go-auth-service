@@ -46,15 +46,17 @@ func NewApp(context context.Context) *App {
 	redisClient = infra.NewRedisClient(context, *envVariables)
 	pLogger.Info("Connected to Redis database")
 
-	pLogger.Info("Creating user handler")
+	pLogger.Info("Creating handlers")
 	userRepository = repository.NewUserRepository(postgresDB, redisClient)
 	userService = service.NewUserService(userRepository)
 	userHandler = handler.NewUserHandler(userService)
-	pLogger.Info("User handler created")
+
+	healthHandler := handler.NewHealthHandler()
+	pLogger.Info("Handlers created")
 
 	pLogger.Info("Initialize server configurations...")
 	app.HttpServer = &http.Server{
-		Handler:           router.InitRouter(envVariables, userHandler),
+		Handler:           router.InitRouter(envVariables, userHandler, healthHandler),
 		Addr:              envVariables.Server.Port,
 		ReadTimeout:       envVariables.Server.ReadTimeout,
 		WriteTimeout:      envVariables.Server.WriteTimeout,
@@ -88,7 +90,7 @@ func (app *App) RunApp() {
 	contextTimeout, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := server.Shutdown(contextTimeout); err != nil {
-		pLogger.Fatalf("Failed to shutdown server gracefully: %v", err)
+		pLogger.Errorf("Failed to shutdown server gracefully: %v", err)
 	}
 
 	pLogger.Info("API server shutdown complete")

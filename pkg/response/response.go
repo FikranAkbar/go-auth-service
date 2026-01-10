@@ -2,6 +2,7 @@ package response
 
 import (
 	"encoding/json"
+	"go-auth-service/pkg/constants"
 	"net/http"
 )
 
@@ -15,7 +16,7 @@ type StandardResponse struct {
 
 // JSON sends a JSON response with the given status code and data
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(constants.HeaderContentType, constants.ContentTypeJSON)
 	w.WriteHeader(statusCode)
 
 	response := StandardResponse{
@@ -24,13 +25,13 @@ func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, constants.ErrFailedToEncodeJSON, http.StatusInternalServerError)
 	}
 }
 
 // Success sends a success response with optional message
 func Success(w http.ResponseWriter, data interface{}, message string) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(constants.HeaderContentType, constants.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 
 	response := StandardResponse{
@@ -40,7 +41,7 @@ func Success(w http.ResponseWriter, data interface{}, message string) {
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, constants.ErrFailedToEncodeJSON, http.StatusInternalServerError)
 	}
 }
 

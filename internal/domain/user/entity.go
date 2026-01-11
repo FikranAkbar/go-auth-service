@@ -1,15 +1,36 @@
 package user
+
 import "time"
+
 // User represents a user entity in the system
 type User struct {
-	ID        string
-	Email     string
-	Password  string // Hashed password
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID           int64     `json:"id" db:"id"`
+	Email        string    `json:"email" db:"email"`
+	Username     string    `json:"username" db:"username"`
+	PasswordHash string    `json:"-" db:"password_hash"` // Never expose password in JSON
+	IsActive     bool      `json:"is_active" db:"is_active"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
-// TODO: Add user-related value objects or methods here as needed
-// Example:
-// func (u *User) IsActive() bool
-// func (u *User) Validate() error
+
+// UserResponse represents the user data returned to clients (without sensitive data)
+type UserResponse struct {
+	ID        int64     `json:"id"`
+	Email     string    `json:"email"`
+	Username  string    `json:"username"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ToResponse converts User entity to UserResponse
+func (u *User) ToResponse() *UserResponse {
+	return &UserResponse{
+		ID:        u.ID,
+		Email:     u.Email,
+		Username:  u.Username,
+		IsActive:  u.IsActive,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
+	}
+}

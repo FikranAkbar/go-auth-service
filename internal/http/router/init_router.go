@@ -12,6 +12,7 @@ func InitRouter(envs *config.Env, handlers ...interface{}) *chi.Mux {
 	var (
 		_             = handlers[0].(*handler.UserHandler)
 		healthHandler = handlers[1].(*handler.HealthHandler)
+		authHandler   = handlers[2].(*handler.AuthHandler)
 	)
 
 	r := chi.NewRouter()
@@ -25,9 +26,16 @@ func InitRouter(envs *config.Env, handlers ...interface{}) *chi.Mux {
 	// Health check endpoint
 	r.Get(`/health`, healthHandler.HealthCheck)
 
+	// Auth endpoints
+	r.Route("/api/auth", func(r chi.Router) {
+		r.Post("/register", authHandler.Register)
+		r.Post("/login", authHandler.Login)
+		r.Post("/logout", authHandler.Logout)
+	})
+
 	// Future user endpoints will be added here
 	// Example:
-	// r.Route("/api/v1/users", func(r chi.Router) {
+	// r.Route("/api/users", func(r chi.Router) {
 	//     r.Post("/", userHandler.CreateUser)
 	//     r.Get("/{id}", userHandler.GetUser)
 	// })

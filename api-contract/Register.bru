@@ -1,0 +1,46 @@
+meta {
+  name: Register User
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8080/api/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "test@example.com",
+    "username": "testuser",
+    "password": "securePassword123"
+  }
+}
+
+tests {
+  test("should return 201 status", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return success true", function() {
+    expect(res.body.success).to.equal(true);
+  });
+
+  test("should return user data", function() {
+    expect(res.body.data.user).to.be.an('object');
+    expect(res.body.data.user.email).to.equal('test@example.com');
+    expect(res.body.data.user.username).to.equal('testuser');
+  });
+
+  test("should return access and refresh tokens", function() {
+    expect(res.body.data.access_token).to.be.a('string');
+    expect(res.body.data.refresh_token).to.be.a('string');
+  });
+
+  test("should not return password", function() {
+    expect(res.body.data.user.password).to.be.undefined;
+    expect(res.body.data.user.password_hash).to.be.undefined;
+  });
+}
+

@@ -8,6 +8,7 @@ import (
 	"go-auth-service/internal/http/router"
 	"go-auth-service/internal/infra"
 	"go-auth-service/internal/repository"
+	"go-auth-service/internal/security"
 	"go-auth-service/internal/service"
 	pLogger "go-auth-service/pkg/logger"
 	"net/http"
@@ -36,16 +37,27 @@ func NewApp(deps AppDependencies) *App {
 		userRepository *repository.UserRepository
 		userService    *service.UserService
 		userHandler    *handler.UserHandler
+		authHandler    *handler.AuthHandler
 	)
 	pLogger.Info("Creating handlers")
+
+	// Initialize security components
+	passwordHasher := security.NewPasswordHasher()
+	jwtManager := security.NewJWTManager(&deps.Config.JWT)
+
+	// Initialize repository and services
 	userRepository = repository.NewUserRepository(deps.DB, deps.RedisClient)
-	userService = service.NewUserService(userRepository)
+	userService = service.NewUserService(userRepository, passwordHasher)
+
+	// Initialize handlers
 	userHandler = handler.NewUserHandler(userService)
+	authHandler = handler.NewAuthHandler(userService, jwtManager)
 	healthHandler := handler.NewHealthHandler()
+
 	pLogger.Info("Handlers created")
 	pLogger.Info("Initialize server configurations...")
 	app.HttpServer = &http.Server{
-		Handler:           router.InitRouter(deps.Config, userHandler, healthHandler),
+		Handler:           router.InitRouter(deps.Config, userHandler, healthHandler, authHandler),
 		Addr:              deps.Config.Server.Port,
 		ReadTimeout:       deps.Config.Server.ReadTimeout,
 		WriteTimeout:      deps.Config.Server.WriteTimeout,

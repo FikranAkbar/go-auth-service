@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"go-auth-service/internal/domain/auth"
 	"go-auth-service/internal/security"
+	"go-auth-service/pkg/constants"
 	appErrors "go-auth-service/pkg/errors"
 	"go-auth-service/pkg/response"
 	"net/http"
@@ -25,7 +26,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	var req auth.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.BadRequest(w, "Invalid request body")
+		response.BadRequest(w, constants.ErrInvalidRequestBody)
 		return
 	}
 	_, userEmail, err := h.authService.RegisterUser(ctx, req.Email, req.Username, req.Password)
@@ -41,9 +42,33 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	response.Created(w, registerResp, "User registered successfully. Please verify your email.")
 }
+
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	response.InternalServerError(w, "Login endpoint not yet implemented")
+	ctx := context.Background()
+
+	var req auth.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, constants.ErrInvalidRequestBody)
+		return
+	}
+
+	loggedInUser, accessToken, refreshToken, err := h.authService.Login(ctx, req.Email, req.Password)
+	if err != nil {
+		statusCode := appErrors.GetHTTPStatus(err)
+		message := appErrors.GetMessage(err)
+		response.Error(w, statusCode, message)
+		return
+	}
+
+	loginResp := auth.LoginResponse{
+		User:         loggedInUser.ToResponse(),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}
+
+	response.Success(w, loginResp, "Login successful")
 }
+
 func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	token := r.URL.Query().Get("token")
@@ -67,16 +92,14 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, statusCode, message)
 		return
 	}
-	accessToken, err := h.jwtManager.GenerateAccessToken(verifiedUser.ID, verifiedUser.Email, verifiedUser.Username)
+
+	// Generate tokens and store refresh token in Redis
+	accessToken, refreshToken, err := h.authService.GenerateAndStoreTokens(ctx, verifiedUser)
 	if err != nil {
-		response.InternalServerError(w, "Failed to generate access token")
+		response.InternalServerError(w, "Failed to generate authentication tokens")
 		return
 	}
-	refreshToken, err := h.jwtManager.GenerateRefreshToken(verifiedUser.ID, verifiedUser.Email, verifiedUser.Username)
-	if err != nil {
-		response.InternalServerError(w, "Failed to generate refresh token")
-		return
-	}
+
 	verifyResp := auth.RegisterResponse{
 		User:         verifiedUser.ToResponse(),
 		AccessToken:  accessToken,
@@ -88,7 +111,7 @@ func (h *AuthHandler) ResendVerificationEmail(w http.ResponseWriter, r *http.Req
 	ctx := context.Background()
 	var req auth.ResendVerificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.BadRequest(w, "Invalid request body")
+		response.BadRequest(w, constants.ErrInvalidRequestBody)
 		return
 	}
 	if req.Email == "" {
@@ -110,5 +133,50 @@ func (h *AuthHandler) ResendVerificationEmail(w http.ResponseWriter, r *http.Req
 	}, "Verification email sent successfully")
 }
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	response.InternalServerError(w, "Logout endpoint not yet implemented")
+	ctx := context.Background()
+
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value("user_id").(int64)
+	if !ok {
+		response.Unauthorized(w, "User not authenticated")
+		return
+	}
+
+	// Logout user
+	if err := h.authService.Logout(ctx, userID); err != nil {
+		response.InternalServerError(w, "Failed to logout")
+		return
+	}
+
+	response.Success(w, map[string]interface{}{
+		"message": "Logged out successfully",
+	}, "Logout successful")
+}
+
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	var req auth.RefreshTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, constants.ErrInvalidRequestBody)
+		return
+	}
+
+	if req.RefreshToken == "" {
+		response.BadRequest(w, "Refresh token is required")
+		return
+	}
+
+	// Validate refresh token and generate new access token
+	newAccessToken, err := h.authService.RefreshToken(ctx, req.RefreshToken)
+	if err != nil {
+		statusCode := appErrors.GetHTTPStatus(err)
+		message := appErrors.GetMessage(err)
+		response.Error(w, statusCode, message)
+		return
+	}
+
+	response.Success(w, map[string]interface{}{
+		"access_token": newAccessToken,
+	}, "Access token refreshed successfully")
 }

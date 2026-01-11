@@ -32,4 +32,7 @@ type ServiceInterface interface {
 
 	// VerifyEmail activates a user account after email verification
 	VerifyEmail(ctx context.Context, userID int64) error
+
+	// VerifyPassword compares a hashed password with a plain text password
+	VerifyPassword(hashedPassword, password string) error
 }

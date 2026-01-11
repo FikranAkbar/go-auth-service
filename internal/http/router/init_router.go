@@ -32,6 +32,7 @@ func InitRouter(envs *config.Env, handlers ...interface{}) *chi.Mux {
 		r.Get("/verify-email", authHandler.VerifyEmail)
 		r.Post("/resend-verification", authHandler.ResendVerificationEmail)
 		r.Post("/login", authHandler.Login)
+		r.Post("/refresh-token", authHandler.RefreshToken)
 		r.Post("/logout", authHandler.Logout)
 	})
 

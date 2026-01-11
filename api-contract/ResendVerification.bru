@@ -12,31 +12,28 @@ post {
 
 body:json {
   {
-    "email": "test@example.com"
+    "email": "fikranakbar756@gmail.com"
   }
 }
-
-
 
 tests {
   test("should return 200 status", function() {
     expect(res.status).to.equal(200);
   });
-
+  
   test("should return success status", function() {
     expect(res.body.status).to.equal('success');
   });
-
+  
   test("should return new verification token", function() {
     expect(res.body.data.verification_token).to.be.a('string');
   });
-
+  
   test("should return email", function() {
     expect(res.body.data.email).to.equal('test@example.com');
   });
-
+  
   test("should return success message", function() {
     expect(res.body.data.message).to.include('verification');
   });
 }
-

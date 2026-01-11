@@ -1,0 +1,29 @@
+meta {
+  name: Refresh Token
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/auth/refresh-token
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refresh_token": "{{refresh_token}}"
+  }
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return new access token", function() {
+    const data = res.body.data;
+    expect(data).to.have.property('access_token');
+  });
+}
+

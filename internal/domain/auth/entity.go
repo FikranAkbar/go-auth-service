@@ -28,6 +28,11 @@ type ResendVerificationRequest struct {
 	Email string `json:"email"`
 }
 
+// RefreshTokenRequest represents the request body for refreshing access token
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 // RegisterResponse represents the response for successful registration
 type RegisterResponse struct {
 	User         *user.UserResponse `json:"user"`

@@ -35,6 +35,7 @@ func NewApp(deps AppDependencies) *App {
 	var (
 		app            = &App{}
 		userRepository *repository.UserRepository
+		tokenRepo      *repository.TokenRepository
 		userService    *service.UserService
 		emailService   *service.EmailService
 		authService    *service.AuthService
@@ -53,8 +54,9 @@ func NewApp(deps AppDependencies) *App {
 
 	// Initialize repository and services
 	userRepository = repository.NewUserRepository(deps.DB, deps.RedisClient)
+	tokenRepo = repository.NewTokenRepository(deps.RedisClient)
 	userService = service.NewUserService(userRepository, passwordHasher)
-	authService = service.NewAuthService(userService, emailService, jwtManager)
+	authService = service.NewAuthService(userService, emailService, jwtManager, tokenRepo)
 
 	// Initialize handlers
 	userHandler = handler.NewUserHandler(userService)

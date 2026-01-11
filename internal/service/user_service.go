@@ -184,6 +184,11 @@ func (s *UserService) VerifyEmail(ctx context.Context, userID int64) error {
 	return nil
 }
 
+// VerifyPassword compares a hashed password with a plain text password
+func (s *UserService) VerifyPassword(hashedPassword, password string) error {
+	return s.passwordHasher.VerifyPassword(hashedPassword, password)
+}
+
 // validateEmail validates email format and length
 func (s *UserService) validateEmail(email string) error {
 	email = strings.TrimSpace(email)

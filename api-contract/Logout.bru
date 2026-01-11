@@ -1,0 +1,27 @@
+meta {
+  name: Logout
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/auth/logout
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return success message", function() {
+    const data = res.body;
+    expect(data.message).to.include('Logged out');
+  });
+}
+

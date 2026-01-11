@@ -1,0 +1,26 @@
+server:
+  read_timeout_duration: 10s
+  write_timeout_duration: 10s
+  idle_timeout_duration: 60s
+  read_header_timeout_duration: 10s
+  port: :8080
+database:
+  type: postgres
+  host: localhost
+  port: 5432
+  username: admin
+  password: secret123
+  name: goauthdb
+  max_idle_connections: 10
+  max_idle_connection_lifetime: 5m
+  max_open_connections: 20
+  max_connection_lifetime: 30m
+redis:
+  host: localhost
+  password:
+  port: 6379
+jwt:
+  secret_key: gZ/eZd24Iv8JfKG075iSTx3BvHFd5ko5qKOAK0Lxlao=
+  access_token_expiry: 15m
+  refresh_token_expiry: 168h  # 7 days
+  issuer: go-auth-service

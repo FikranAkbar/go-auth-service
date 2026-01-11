@@ -203,14 +203,9 @@ func initializeDatabaseConfig(cfg *Env) {
 func initializeJWTConfig(cfg *Env) {
 	var err error
 
-	// Validate secret key (can come from config.yaml directly or from env variable)
+	// Validate secret key
 	if cfg.JWT.SecretKey == "" {
-		logger.Fatal("JWT secret key is required. Set it in config.yaml or via JWT_SECRET_KEY environment variable.")
-	}
-
-	// Warn if the placeholder is still there (not replaced by env var)
-	if cfg.JWT.SecretKey == "${JWT_SECRET_KEY}" {
-		logger.Fatal("JWT secret key placeholder not replaced. Either set JWT_SECRET_KEY environment variable or provide value directly in config.yaml")
+		logger.Fatal("JWT secret key is required. Set it in config.yaml")
 	}
 
 	if len(cfg.JWT.SecretKey) < 32 {

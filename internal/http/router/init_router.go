@@ -29,6 +29,8 @@ func InitRouter(envs *config.Env, handlers ...interface{}) *chi.Mux {
 	// Auth endpoints
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/register", authHandler.Register)
+		r.Get("/verify-email", authHandler.VerifyEmail)
+		r.Post("/resend-verification", authHandler.ResendVerificationEmail)
 		r.Post("/login", authHandler.Login)
 		r.Post("/logout", authHandler.Logout)
 	})

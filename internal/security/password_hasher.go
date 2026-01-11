@@ -9,10 +9,26 @@ type PasswordHasher struct {
 	cost int
 }
 
-// NewPasswordHasher creates a new password hasher with default cost
-func NewPasswordHasher() *PasswordHasher {
+// NewPasswordHasher creates a new password hasher with specified cost
+// Recommended cost: 4 for development (~100ms), 10 for production (~3s)
+func NewPasswordHasher(cost int) *PasswordHasher {
+	// Validate cost range (bcrypt accepts 4-31)
+	if cost < bcrypt.MinCost {
+		cost = bcrypt.MinCost // 4
+	}
+	if cost > bcrypt.MaxCost {
+		cost = bcrypt.MaxCost // 31
+	}
+
 	return &PasswordHasher{
-		cost: bcrypt.DefaultCost, // Cost factor of 10
+		cost: cost,
+	}
+}
+
+// NewPasswordHasherWithDefaultCost creates hasher with bcrypt default cost (10)
+func NewPasswordHasherWithDefaultCost() *PasswordHasher {
+	return &PasswordHasher{
+		cost: bcrypt.DefaultCost, // 10
 	}
 }
 

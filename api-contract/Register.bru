@@ -12,8 +12,8 @@ post {
 
 body:json {
   {
-    "email": "test@example.com",
-    "username": "testuser",
+    "email": "fikranakbar756@gmail.com",
+    "username": "fikranakbar",
     "password": "securePassword123"
   }
 }
@@ -22,25 +22,22 @@ tests {
   test("should return 201 status", function() {
     expect(res.status).to.equal(201);
   });
-
-  test("should return success true", function() {
-    expect(res.body.success).to.equal(true);
+  
+  test("should return success status", function() {
+    expect(res.body.status).to.equal('success');
   });
-
-  test("should return user data", function() {
-    expect(res.body.data.user).to.be.an('object');
-    expect(res.body.data.user.email).to.equal('test@example.com');
-    expect(res.body.data.user.username).to.equal('testuser');
+  
+  test("should return verification message", function() {
+    expect(res.body.data.message).to.include('verification');
+    expect(res.body.data.email).to.equal('test@example.com');
   });
-
-  test("should return access and refresh tokens", function() {
-    expect(res.body.data.access_token).to.be.a('string');
-    expect(res.body.data.refresh_token).to.be.a('string');
+  
+  test("should return verification token (temporary - will be sent via email)", function() {
+    expect(res.body.data.verification_token).to.be.a('string');
   });
-
-  test("should not return password", function() {
-    expect(res.body.data.user.password).to.be.undefined;
-    expect(res.body.data.user.password_hash).to.be.undefined;
+  
+  test("should NOT return access/refresh tokens yet", function() {
+    expect(res.body.data.access_token).to.be.undefined;
+    expect(res.body.data.refresh_token).to.be.undefined;
   });
 }
-

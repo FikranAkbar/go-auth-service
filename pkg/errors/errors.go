@@ -42,6 +42,8 @@ var (
 	ErrUsernameAlreadyExists = errors.New("username already in use")
 	ErrUserNotFound          = errors.New("user not found")
 	ErrInvalidCredentials    = errors.New("invalid credentials")
+	ErrUserAlreadyVerified   = errors.New("user account is already verified")
+	ErrUserNotVerified       = errors.New("user account is not verified")
 
 	// Authentication errors
 	ErrInvalidToken      = errors.New("invalid token")
@@ -108,7 +110,9 @@ func GetHTTPStatus(err error) int {
 		errors.Is(err, ErrPasswordTooLong),
 		errors.Is(err, ErrUsernameTooShort),
 		errors.Is(err, ErrUsernameTooLong),
-		errors.Is(err, ErrEmailTooLong):
+		errors.Is(err, ErrEmailTooLong),
+		errors.Is(err, ErrUserAlreadyVerified),
+		errors.Is(err, ErrUserNotVerified):
 		return http.StatusBadRequest
 
 	case errors.Is(err, ErrEmailAlreadyExists),

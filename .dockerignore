@@ -1,0 +1,12 @@
+.git
+.gitignore
+README.md
+.env
+.env.example
+bin/
+tmp/
+*.log
+.idea/
+.DS_Store
+coverage.out
+

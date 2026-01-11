@@ -19,6 +19,11 @@ func NewUserRepository(db *sql.DB, redisClient *redis.Client) *UserRepository {
 	return &UserRepository{Db: db, RedisClient: redisClient}
 }
 
+// BeginTx starts a new database transaction
+func (r *UserRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return r.Db.BeginTx(ctx, nil)
+}
+
 // CreateUser creates a new user in the database
 func (r *UserRepository) CreateUser(ctx context.Context, u *user.User) error {
 	query := `
@@ -28,6 +33,30 @@ func (r *UserRepository) CreateUser(ctx context.Context, u *user.User) error {
 	`
 
 	err := r.Db.QueryRowContext(
+		ctx,
+		query,
+		u.Email,
+		u.Username,
+		u.PasswordHash,
+		u.IsActive,
+	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateUserTx creates a new user within a transaction
+func (r *UserRepository) CreateUserTx(ctx context.Context, tx *sql.Tx, u *user.User) error {
+	query := `
+		INSERT INTO users (email, username, password_hash, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		RETURNING id, created_at, updated_at
+	`
+
+	err := tx.QueryRowContext(
 		ctx,
 		query,
 		u.Email,

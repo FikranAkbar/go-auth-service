@@ -1,0 +1,40 @@
+# fly.toml app configuration file
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "go-auth-service"
+primary_region = "sin" # Singapore - closest to Indonesia
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true    # ✅ Stops when idle = FREE
+  auto_start_machines = true   # ✅ Starts on request
+  min_machines_running = 0     # ✅ 0 = FREE (sleeps when idle)
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256              # ✅ FREE tier limit
+
+# Environment variables
+[env]
+  APP_ENV = "production"
+  SERVER_PORT = ":8080"
+
+# ⚠️ IMPORTANT: Keep min_machines_running = 0 to stay FREE
+# Setting it to 1 will cost ~$2/month for always-on instance
+
+# Secrets (set via: flyctl secrets set KEY=value)
+# flyctl secrets set DB_HOST=your-postgres-host
+# flyctl secrets set DB_USERNAME=postgres
+# flyctl secrets set DB_PASSWORD=your-password
+# flyctl secrets set DB_NAME=goauthdb
+# flyctl secrets set REDIS_HOST=your-redis-host
+# flyctl secrets set REDIS_PASSWORD=your-redis-password
+# flyctl secrets set JWT_SECRET_KEY=your-secret-key
+# flyctl secrets set SMTP_USERNAME=your-gmail
+# flyctl secrets set SMTP_PASSWORD=your-app-password
+

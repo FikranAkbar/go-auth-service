@@ -14,6 +14,8 @@ type Env struct {
 	Database DatabaseConfig `yaml:"database"`
 	Redis    RedisConfig    `yaml:"redis"`
 	JWT      JWTConfig      `yaml:"jwt"`
+	Email    EmailConfig    `yaml:"email"`
+	App      AppConfig      `yaml:"app"`
 }
 
 type ServerConfig struct {
@@ -57,6 +59,20 @@ type JWTConfig struct {
 	AccessTokenExpiryStr  string        `yaml:"access_token_expiry"`
 	RefreshTokenExpiryStr string        `yaml:"refresh_token_expiry"`
 	Issuer                string        `yaml:"issuer"`
+	BcryptCost            int           `yaml:"bcrypt_cost"` // Password hashing cost (4-31, recommended: 4 for dev, 10 for prod)
+}
+
+type EmailConfig struct {
+	SMTPHost     string `yaml:"smtp_host"`
+	SMTPPort     string `yaml:"smtp_port"`
+	SMTPUsername string `yaml:"smtp_username"`
+	SMTPPassword string `yaml:"smtp_password"`
+	FromEmail    string `yaml:"from_email"`
+	FromName     string `yaml:"from_name"`
+}
+
+type AppConfig struct {
+	URL string `yaml:"url"`
 }
 
 type envLoader struct {
@@ -104,6 +120,18 @@ func loadFromEnv() *Env {
 			AccessTokenExpiryStr:  l.opt("JWT_ACCESS_TOKEN_EXPIRY", "15m"),
 			RefreshTokenExpiryStr: l.opt("JWT_REFRESH_TOKEN_EXPIRY", "7d"),
 			Issuer:                l.req("JWT_ISSUER"),
+			BcryptCost:            4, // Default to 4 for fast development
+		},
+		Email: EmailConfig{
+			SMTPHost:     l.opt("SMTP_HOST", ""),
+			SMTPPort:     l.opt("SMTP_PORT", "587"),
+			SMTPUsername: l.opt("SMTP_USERNAME", ""),
+			SMTPPassword: l.opt("SMTP_PASSWORD", ""),
+			FromEmail:    l.opt("FROM_EMAIL", "noreply@example.com"),
+			FromName:     l.opt("FROM_NAME", "Go Auth Service"),
+		},
+		App: AppConfig{
+			URL: l.opt("APP_URL", "http://localhost:8080"),
 		},
 	}
 

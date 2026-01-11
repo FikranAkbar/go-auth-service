@@ -1,13 +1,22 @@
 package user
 
-import "context"
+import (
+	"context"
+	"database/sql"
+)
 
 // RepositoryInterface defines the contract for user data operations.
 // This interface allows the service layer to work with different repository implementations,
 // making the code testable by enabling mock repositories in tests.
 type RepositoryInterface interface {
+	// BeginTx starts a new database transaction
+	BeginTx(ctx context.Context) (*sql.Tx, error)
+
 	// CreateUser creates a new user in the database
 	CreateUser(ctx context.Context, user *User) error
+
+	// CreateUserTx creates a new user within a transaction
+	CreateUserTx(ctx context.Context, tx *sql.Tx, user *User) error
 
 	// FindUserByEmail finds a user by their email address
 	FindUserByEmail(ctx context.Context, email string) (*User, error)

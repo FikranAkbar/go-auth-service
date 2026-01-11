@@ -13,8 +13,9 @@ import (
 type TokenType string
 
 const (
-	AccessToken  TokenType = "access"
-	RefreshToken TokenType = "refresh"
+	AccessToken       TokenType = "access"
+	RefreshToken      TokenType = "refresh"
+	VerificationToken TokenType = "verification"
 )
 
 // Claims represents the JWT claims structure
@@ -52,6 +53,11 @@ func (jm *JWTManager) GenerateAccessToken(userID int64, email, username string) 
 // GenerateRefreshToken generates a new refresh token for a user
 func (jm *JWTManager) GenerateRefreshToken(userID int64, email, username string) (string, error) {
 	return jm.generateToken(userID, email, username, RefreshToken, jm.refreshTokenExpiry)
+}
+
+// GenerateVerificationToken generates a token for email verification (24 hour expiry)
+func (jm *JWTManager) GenerateVerificationToken(userID int64, email string) (string, error) {
+	return jm.generateToken(userID, email, "", VerificationToken, 24*time.Hour)
 }
 
 // generateToken is a helper function to generate JWT tokens

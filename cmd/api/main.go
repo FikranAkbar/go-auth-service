@@ -36,22 +36,29 @@ func NewApp(deps AppDependencies) *App {
 		app            = &App{}
 		userRepository *repository.UserRepository
 		userService    *service.UserService
+		emailService   *service.EmailService
+		authService    *service.AuthService
 		userHandler    *handler.UserHandler
 		authHandler    *handler.AuthHandler
 	)
 	pLogger.Info("Creating handlers")
 
 	// Initialize security components
-	passwordHasher := security.NewPasswordHasher()
+	passwordHasher := security.NewPasswordHasher(deps.Config.JWT.BcryptCost)
 	jwtManager := security.NewJWTManager(&deps.Config.JWT)
+
+	// Initialize email client and service
+	emailClient := infra.NewEmailClient(&deps.Config.Email)
+	emailService = service.NewEmailService(emailClient, deps.Config.App.URL)
 
 	// Initialize repository and services
 	userRepository = repository.NewUserRepository(deps.DB, deps.RedisClient)
 	userService = service.NewUserService(userRepository, passwordHasher)
+	authService = service.NewAuthService(userService, emailService, jwtManager)
 
 	// Initialize handlers
 	userHandler = handler.NewUserHandler(userService)
-	authHandler = handler.NewAuthHandler(userService, jwtManager)
+	authHandler = handler.NewAuthHandler(authService, jwtManager)
 	healthHandler := handler.NewHealthHandler()
 
 	pLogger.Info("Handlers created")

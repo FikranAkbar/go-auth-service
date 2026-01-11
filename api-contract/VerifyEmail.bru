@@ -1,0 +1,43 @@
+meta {
+  name: Verify Email
+  type: http
+  seq: 3
+}
+
+get {
+  url: http://localhost:8080/api/auth/verify-email?token={{verification_token}}
+  body: none
+  auth: none
+}
+
+params:query {
+  token: {{verification_token}}
+}
+
+
+
+tests {
+  test("should return 200 status", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return success status", function() {
+    expect(res.body.status).to.equal('success');
+  });
+
+  test("should return verified user data", function() {
+    expect(res.body.data.user).to.be.an('object');
+    expect(res.body.data.user.is_active).to.equal(true);
+  });
+
+  test("should return access and refresh tokens (auto-login)", function() {
+    expect(res.body.data.access_token).to.be.a('string');
+    expect(res.body.data.refresh_token).to.be.a('string');
+  });
+
+  test("should not return password", function() {
+    expect(res.body.data.user.password).to.be.undefined;
+    expect(res.body.data.user.password_hash).to.be.undefined;
+  });
+}
+

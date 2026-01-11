@@ -23,6 +23,11 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// ResendVerificationRequest represents the request body for resending verification email
+type ResendVerificationRequest struct {
+	Email string `json:"email"`
+}
+
 // RegisterResponse represents the response for successful registration
 type RegisterResponse struct {
 	User         *user.UserResponse `json:"user"`

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"go-auth-service/internal/domain/auth"
-	"go-auth-service/internal/security"
+	domainSecurity "go-auth-service/internal/domain/security"
 	"go-auth-service/pkg/constants"
 	appErrors "go-auth-service/pkg/errors"
 	"go-auth-service/pkg/response"
@@ -13,10 +13,10 @@ import (
 
 type AuthHandler struct {
 	authService auth.ServiceInterface
-	jwtManager  *security.JWTManager
+	jwtManager  domainSecurity.JWTManagerInterface
 }
 
-func NewAuthHandler(authService auth.ServiceInterface, jwtManager *security.JWTManager) *AuthHandler {
+func NewAuthHandler(authService auth.ServiceInterface, jwtManager domainSecurity.JWTManagerInterface) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		jwtManager:  jwtManager,
@@ -81,7 +81,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Invalid or expired verification token")
 		return
 	}
-	if claims.Type != security.VerificationToken {
+	if claims.Type != domainSecurity.VerificationToken {
 		response.BadRequest(w, "Invalid token type")
 		return
 	}

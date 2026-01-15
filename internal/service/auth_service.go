@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"go-auth-service/internal/domain/auth"
 	"go-auth-service/internal/domain/email"
+	domainRepository "go-auth-service/internal/domain/repository"
+	domainSecurity "go-auth-service/internal/domain/security"
 	"go-auth-service/internal/domain/user"
-	"go-auth-service/internal/repository"
-	"go-auth-service/internal/security"
 	appErrors "go-auth-service/pkg/errors"
 	"go-auth-service/pkg/logger"
 	"time"
@@ -16,11 +16,16 @@ import (
 type AuthService struct {
 	userService  user.ServiceInterface
 	emailService email.ServiceInterface
-	jwtManager   *security.JWTManager
-	tokenRepo    *repository.TokenRepository
+	jwtManager   domainSecurity.JWTManagerInterface
+	tokenRepo    domainRepository.TokenRepositoryInterface
 }
 
-func NewAuthService(userService user.ServiceInterface, emailService email.ServiceInterface, jwtManager *security.JWTManager, tokenRepo *repository.TokenRepository) *AuthService {
+func NewAuthService(
+	userService user.ServiceInterface,
+	emailService email.ServiceInterface,
+	jwtManager domainSecurity.JWTManagerInterface,
+	tokenRepo domainRepository.TokenRepositoryInterface,
+) *AuthService {
 	return &AuthService{
 		userService:  userService,
 		emailService: emailService,
@@ -196,7 +201,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (st
 	}
 
 	// Check token type
-	if claims.Type != security.RefreshToken {
+	if claims.Type != domainSecurity.RefreshToken {
 		logger.Warnf("Token is not a refresh token, got type: %s", claims.Type)
 		return "", appErrors.ErrInvalidToken
 	}

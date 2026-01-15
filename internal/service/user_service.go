@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	domainSecurity "go-auth-service/internal/domain/security"
 	"go-auth-service/internal/domain/user"
-	"go-auth-service/internal/security"
 	appErrors "go-auth-service/pkg/errors"
 	"regexp"
 	"strings"
@@ -12,10 +12,10 @@ import (
 
 type UserService struct {
 	userRepository user.RepositoryInterface
-	passwordHasher *security.PasswordHasher
+	passwordHasher domainSecurity.PasswordHasherInterface
 }
 
-func NewUserService(userRepo user.RepositoryInterface, passwordHasher *security.PasswordHasher) *UserService {
+func NewUserService(userRepo user.RepositoryInterface, passwordHasher domainSecurity.PasswordHasherInterface) *UserService {
 	return &UserService{
 		userRepository: userRepo,
 		passwordHasher: passwordHasher,

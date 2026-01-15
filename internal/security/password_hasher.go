@@ -1,6 +1,8 @@
 package security
 
 import (
+	domainSecurity "go-auth-service/internal/domain/security"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -45,3 +47,6 @@ func (ph *PasswordHasher) HashPassword(password string) (string, error) {
 func (ph *PasswordHasher) VerifyPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
+
+// Compile-time check to ensure PasswordHasher implements the interface
+var _ domainSecurity.PasswordHasherInterface = (*PasswordHasher)(nil)

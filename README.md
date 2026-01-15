@@ -49,6 +49,11 @@ go-auth-service/
 │   │   │   └── service.go            # Auth service interface
 │   │   ├── email/
 │   │   │   └── service.go            # Email service interface
+│   │   ├── repository/
+│   │   │   └── token_repository.go   # Token repository interface
+│   │   ├── security/
+│   │   │   ├── jwt_manager.go        # JWT manager interface
+│   │   │   └── password_hasher.go    # Password hasher interface
 │   │   └── user/
 │   │       ├── entity.go             # User entity
 │   │       ├── repository.go         # User repository interface

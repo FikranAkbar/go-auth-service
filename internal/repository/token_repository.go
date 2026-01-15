@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	domainRepository "go-auth-service/internal/domain/repository"
 	"go-auth-service/pkg/constants"
 	"go-auth-service/pkg/logger"
 	"time"
@@ -64,7 +65,7 @@ func (r *TokenRepository) StoreRefreshToken(ctx context.Context, userID int64, t
 }
 
 // GetRefreshToken retrieves a refresh token from Redis
-func (r *TokenRepository) GetRefreshToken(ctx context.Context, userID int64) (*RefreshTokenData, error) {
+func (r *TokenRepository) GetRefreshToken(ctx context.Context, userID int64) (*domainRepository.RefreshTokenData, error) {
 	key := fmt.Sprintf("%s%d", constants.RedisKeyPrefixToken, userID)
 
 	val, err := r.redis.Get(ctx, key).Result()
@@ -76,7 +77,7 @@ func (r *TokenRepository) GetRefreshToken(ctx context.Context, userID int64) (*R
 		return nil, err
 	}
 
-	var data RefreshTokenData
+	var data domainRepository.RefreshTokenData
 	if err := json.Unmarshal([]byte(val), &data); err != nil {
 		logger.Errorf("Failed to unmarshal refresh token data for user %d: %v", userID, err)
 		return nil, err
@@ -119,3 +120,6 @@ func (r *TokenRepository) ValidateRefreshToken(ctx context.Context, userID int64
 
 	return true, nil
 }
+
+// Compile-time check to ensure TokenRepository implements the interface
+var _ domainRepository.TokenRepositoryInterface = (*TokenRepository)(nil)

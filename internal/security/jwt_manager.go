@@ -3,29 +3,12 @@ package security
 import (
 	"errors"
 	"go-auth-service/internal/config"
+	domainSecurity "go-auth-service/internal/domain/security"
 	"go-auth-service/pkg/constants"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
-
-// TokenType represents the type of JWT token
-type TokenType string
-
-const (
-	AccessToken       TokenType = "access"
-	RefreshToken      TokenType = "refresh"
-	VerificationToken TokenType = "verification"
-)
-
-// Claims represents the JWT claims structure
-type Claims struct {
-	UserID   int64     `json:"user_id"`
-	Email    string    `json:"email"`
-	Username string    `json:"username"`
-	Type     TokenType `json:"type"`
-	jwt.RegisteredClaims
-}
 
 // JWTManager handles JWT token generation and validation
 type JWTManager struct {
@@ -47,23 +30,23 @@ func NewJWTManager(cfg *config.JWTConfig) *JWTManager {
 
 // GenerateAccessToken generates a new access token for a user
 func (jm *JWTManager) GenerateAccessToken(userID int64, email, username string) (string, error) {
-	return jm.generateToken(userID, email, username, AccessToken, jm.accessTokenExpiry)
+	return jm.generateToken(userID, email, username, domainSecurity.AccessToken, jm.accessTokenExpiry)
 }
 
 // GenerateRefreshToken generates a new refresh token for a user
 func (jm *JWTManager) GenerateRefreshToken(userID int64, email, username string) (string, error) {
-	return jm.generateToken(userID, email, username, RefreshToken, jm.refreshTokenExpiry)
+	return jm.generateToken(userID, email, username, domainSecurity.RefreshToken, jm.refreshTokenExpiry)
 }
 
 // GenerateVerificationToken generates a token for email verification (24 hour expiry)
 func (jm *JWTManager) GenerateVerificationToken(userID int64, email string) (string, error) {
-	return jm.generateToken(userID, email, "", VerificationToken, 24*time.Hour)
+	return jm.generateToken(userID, email, "", domainSecurity.VerificationToken, 24*time.Hour)
 }
 
 // generateToken is a helper function to generate JWT tokens
-func (jm *JWTManager) generateToken(userID int64, email, username string, tokenType TokenType, expiry time.Duration) (string, error) {
+func (jm *JWTManager) generateToken(userID int64, email, username string, tokenType domainSecurity.TokenType, expiry time.Duration) (string, error) {
 	now := time.Now()
-	claims := Claims{
+	claims := domainSecurity.Claims{
 		UserID:   userID,
 		Email:    email,
 		Username: username,
@@ -80,8 +63,8 @@ func (jm *JWTManager) generateToken(userID int64, email, username string, tokenT
 }
 
 // ValidateToken validates a JWT token and returns the claims
-func (jm *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+func (jm *JWTManager) ValidateToken(tokenString string) (*domainSecurity.Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &domainSecurity.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// Verify signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New(constants.ErrInvalidToken)
@@ -93,7 +76,7 @@ func (jm *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 		return nil, err
 	}
 
-	claims, ok := token.Claims.(*Claims)
+	claims, ok := token.Claims.(*domainSecurity.Claims)
 	if !ok || !token.Valid {
 		return nil, errors.New(constants.ErrInvalidToken)
 	}
@@ -109,3 +92,6 @@ func (jm *JWTManager) ExtractUserID(tokenString string) (int64, error) {
 	}
 	return claims.UserID, nil
 }
+
+// Compile-time check to ensure JWTManager implements the interface
+var _ domainSecurity.JWTManagerInterface = (*JWTManager)(nil)

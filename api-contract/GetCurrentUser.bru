@@ -1,0 +1,53 @@
+meta {
+  name: Get Current User (Me)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/users/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:8080
+  accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6ImZpa3JhbmFrYmFyNzU2QGdtYWlsLmNvbSIsInVzZXJuYW1lIjoiZmlrcmFuYWtiYXIiLCJ0eXBlIjoiYWNjZXNzIiwiaXNzIjoiZ28tYXV0aC1zZXJ2aWNlIiwiZXhwIjoxNzY4NTUwNjE2LCJpYXQiOjE3Njg1NDk3MTZ9.d0V0x6scRYxyvxz3T3gAc6JvomGDtbN1Ej0YFlhoWkE
+}
+
+docs {
+  # Get Current User Profile
+  
+  Returns the currently authenticated user's profile.
+  
+  ## Status
+  ⚠️ **NOT IMPLEMENTED YET**
+  - Auth middleware not yet implemented
+  - Currently returns 401 Unauthorized
+  - Will work after auth middleware is added
+  
+  ## Future Implementation
+  - Requires valid access token in Authorization header
+  - Returns full user profile for authenticated user
+  - Protected by auth middleware
+  
+  ## Expected Response (after implementation)
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": 1,
+      "email": "user@example.com",
+      "username": "johndoe",
+      "is_active": true,
+      "created_at": "2026-01-16T10:00:00Z",
+      "updated_at": "2026-01-16T10:00:00Z"
+    },
+    "message": "User retrieved successfully"
+  }
+  ```
+}

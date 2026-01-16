@@ -66,7 +66,7 @@ func NewApp(deps AppDependencies) *App {
 	pLogger.Info("Handlers created")
 	pLogger.Info("Initialize server configurations...")
 	app.HttpServer = &http.Server{
-		Handler:           router.InitRouter(deps.Config, userHandler, healthHandler, authHandler),
+		Handler:           router.InitRouter(deps.Config, jwtManager, userHandler, healthHandler, authHandler),
 		Addr:              deps.Config.Server.Port,
 		ReadTimeout:       deps.Config.Server.ReadTimeout,
 		WriteTimeout:      deps.Config.Server.WriteTimeout,

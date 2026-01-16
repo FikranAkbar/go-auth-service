@@ -53,10 +53,12 @@ var (
 	ErrInsufficientPerms = errors.New("insufficient permissions")
 
 	// System errors
-	ErrInternal       = errors.New("internal server error")
-	ErrDatabaseError  = errors.New("database error")
-	ErrHashingFailed  = errors.New("password hashing failed")
-	ErrTokenGenFailed = errors.New("token generation failed")
+	ErrInternal         = errors.New("internal server error")
+	ErrDatabaseError    = errors.New("database error")
+	ErrHashingFailed    = errors.New("password hashing failed")
+	ErrTokenGenFailed   = errors.New("token generation failed")
+	ErrEmailSendFailed  = errors.New("failed to send email")
+	ErrRedisStoreFailed = errors.New("failed to store token in Redis")
 )
 
 // NewAppError creates a new application error with HTTP status code

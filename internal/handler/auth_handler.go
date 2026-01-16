@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"go-auth-service/internal/domain/auth"
 	domainSecurity "go-auth-service/internal/domain/security"
 	"go-auth-service/pkg/constants"
@@ -109,34 +110,60 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 }
 func (h *AuthHandler) ResendVerificationEmail(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
+
 	var req auth.ResendVerificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w, constants.ErrInvalidRequestBody)
 		return
 	}
+
 	if req.Email == "" {
 		response.BadRequest(w, "Email is required")
 		return
 	}
-	if err := h.authService.ResendVerificationEmail(ctx, req.Email); err != nil {
-		if err == appErrors.ErrUserAlreadyVerified {
-			response.BadRequest(w, "This account is already verified. Please login.")
-			return
-		}
+
+	err := h.authService.ResendVerificationEmail(ctx, req.Email)
+	if err == nil {
+		response.Success(w, map[string]interface{}{
+			"message": "Verification email sent. Please check your email to verify your account.",
+		}, "Verification email sent successfully")
+		return
+	}
+
+	// Handle specific errors
+	if errors.Is(err, appErrors.ErrUserAlreadyVerified) {
+		response.BadRequest(w, "This account is already verified. Please login.")
+		return
+	}
+
+	// Check for wrapped AppError
+	var appErr *appErrors.AppError
+	if !errors.As(err, &appErr) {
+		// Unknown error - don't reveal if user exists (security)
 		response.Success(w, map[string]interface{}{
 			"message": "If an unverified account exists for this email, a verification email has been sent.",
 		}, "Verification email sent")
 		return
 	}
-	response.Success(w, map[string]interface{}{
-		"message": "Verification email sent. Please check your email to verify your account.",
-	}, "Verification email sent successfully")
+
+	// Handle specific AppError types
+	switch {
+	case errors.Is(appErr.Err, appErrors.ErrTokenGenFailed):
+		response.InternalServerError(w, "Failed to generate verification token. Please try again later.")
+	case errors.Is(appErr.Err, appErrors.ErrEmailSendFailed):
+		response.InternalServerError(w, "Failed to send verification email. Please try again later.")
+	default:
+		// Unknown error - don't reveal if user exists (security)
+		response.Success(w, map[string]interface{}{
+			"message": "If an unverified account exists for this email, a verification email has been sent.",
+		}, "Verification email sent")
+	}
 }
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(int64)
+	userID, ok := r.Context().Value(constants.ContextKeyUserID).(int64)
 	if !ok {
 		response.Unauthorized(w, "User not authenticated")
 		return

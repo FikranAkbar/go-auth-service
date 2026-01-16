@@ -5,6 +5,7 @@ type ContextKey string
 
 const (
 	ContextKeyUserID    ContextKey = "user_id"
+	ContextKeyUsername  ContextKey = "username"
 	ContextKeyRequestID ContextKey = "request_id"
 	ContextKeyUserEmail ContextKey = "user_email"
 	ContextKeyUserRole  ContextKey = "user_role"

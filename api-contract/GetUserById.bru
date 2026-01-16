@@ -1,0 +1,27 @@
+meta {
+}
+  - May return different data based on viewer's permissions
+  - May be restricted to authenticated users only
+  ## Future
+
+  - Returns 404 if user not found
+  - This is a public endpoint (no authentication required)
+  - Returns only public user data (no password_hash)
+  ## Notes
+
+  Retrieves a user's public profile information by their ID.
+
+  # Get User By ID
+docs {
+
+}
+  auth: none
+  body: none
+  url: {{baseUrl}}/api/users/1
+get {
+
+}
+  seq: 8
+  type: http
+  name: Get User By ID
+

@@ -179,13 +179,13 @@ func (s *AuthService) ResendVerificationEmail(ctx context.Context, email string)
 	verificationToken, err := s.jwtManager.GenerateVerificationToken(foundUser.ID, foundUser.Email)
 	if err != nil {
 		logger.Errorf("Failed to generate verification token for user %d: %v", foundUser.ID, err)
-		return err
+		return appErrors.Internal(appErrors.ErrTokenGenFailed, "Failed to generate verification token")
 	}
 
 	// Send verification email
 	if err := s.emailService.SendVerificationEmail(foundUser.Email, verificationToken); err != nil {
 		logger.Errorf("Failed to send verification email to user %d (%s): %v", foundUser.ID, foundUser.Email, err)
-		return err
+		return appErrors.Internal(appErrors.ErrEmailSendFailed, "Failed to send verification email. Please try again later.")
 	}
 
 	return nil

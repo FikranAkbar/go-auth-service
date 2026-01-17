@@ -170,7 +170,10 @@ func TestInitializeJWTConfig_ValidConfig(t *testing.T) {
 		},
 	}
 
-	initializeJWTConfig(cfg)
+	err := initializeJWTConfig(cfg)
+	if err != nil {
+		t.Fatalf("Expected initializeJWTConfig to succeed, got error: %v", err)
+	}
 
 	if cfg.JWT.AccessTokenExpiry != 15*time.Minute {
 		t.Errorf("Expected AccessTokenExpiry 15m, got %v", cfg.JWT.AccessTokenExpiry)
@@ -193,7 +196,10 @@ func TestInitializeJWTConfig_DefaultIssuer(t *testing.T) {
 		},
 	}
 
-	initializeJWTConfig(cfg)
+	err := initializeJWTConfig(cfg)
+	if err != nil {
+		t.Fatalf("Expected initializeJWTConfig to succeed, got error: %v", err)
+	}
 
 	if cfg.JWT.Issuer != "go-auth-service" {
 		t.Errorf("Expected default issuer go-auth-service, got %s", cfg.JWT.Issuer)
@@ -210,7 +216,10 @@ func TestInitializeServerConfig(t *testing.T) {
 		},
 	}
 
-	initializeServerConfig(cfg)
+	err := initializeServerConfig(cfg)
+	if err != nil {
+		t.Fatalf("Expected initializeServerConfig to succeed, got error: %v", err)
+	}
 
 	if cfg.Server.ReadHeaderTimeout != 10*time.Second {
 		t.Errorf("Expected ReadHeaderTimeout 10s, got %v", cfg.Server.ReadHeaderTimeout)
@@ -234,7 +243,10 @@ func TestInitializeDatabaseConfig(t *testing.T) {
 		},
 	}
 
-	initializeDatabaseConfig(cfg)
+	err := initializeDatabaseConfig(cfg)
+	if err != nil {
+		t.Fatalf("Expected initializeDatabaseConfig to succeed, got error: %v", err)
+	}
 
 	if cfg.Database.MaxConnectionLifetime != 30*time.Minute {
 		t.Errorf("Expected MaxConnectionLifetime 30m, got %v", cfg.Database.MaxConnectionLifetime)
@@ -366,7 +378,10 @@ jwt:
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
 
-	cfg := loadFromYAML(configPath)
+	cfg, err := loadFromYAML(configPath)
+	if err != nil {
+		t.Fatalf("Expected loadFromYAML to succeed, got error: %v", err)
+	}
 
 	if cfg.JWT.SecretKey != "env-substituted-secret-key-32-chars" {
 		t.Errorf("Expected env var substitution, got %s", cfg.JWT.SecretKey)
@@ -524,7 +539,10 @@ func TestInitializeJWTConfig_ShortSecretKeyWarning(t *testing.T) {
 	}
 
 	// This should log a warning but not fail
-	initializeJWTConfig(cfg)
+	err := initializeJWTConfig(cfg)
+	if err != nil {
+		t.Fatalf("Expected initializeJWTConfig to succeed despite warning, got error: %v", err)
+	}
 
 	// Verify it still parses correctly
 	if cfg.JWT.AccessTokenExpiry != 15*time.Minute {
@@ -554,7 +572,10 @@ func TestLoadFromEnv_AllOptionalDefaults(t *testing.T) {
 		os.Unsetenv("JWT_ISSUER")
 	}()
 
-	cfg := loadFromEnv()
+	cfg, err := loadFromEnv()
+	if err != nil {
+		t.Fatalf("Expected loadFromEnv to succeed, got error: %v", err)
+	}
 
 	// Check defaults
 	if cfg.Database.Type != "postgres" {
@@ -640,7 +661,10 @@ func TestLoadFromEnv_WithCustomOptionalValues(t *testing.T) {
 		os.Unsetenv("APP_URL")
 	}()
 
-	cfg := loadFromEnv()
+	cfg, err := loadFromEnv()
+	if err != nil {
+		t.Fatalf("Expected loadFromEnv to succeed, got error: %v", err)
+	}
 
 	// Verify custom values
 	if cfg.Database.Type != "mysql" {

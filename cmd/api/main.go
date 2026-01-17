@@ -105,14 +105,39 @@ func main() {
 	// Load configuration
 	pLogger.Info("Loading environment variables")
 	envVariables := config.LoadServiceEnvironmentVariables()
+	if envVariables == nil {
+		pLogger.Error("Failed to load environment variables")
+		return
+	}
 	pLogger.LogStruct("Environment variables loaded", envVariables)
+
 	// Setup infrastructure
 	pLogger.Info("Connecting to Postgres database")
-	postgresDB := infra.NewPostgresDB(envVariables)
+	postgresDB, err := infra.NewPostgresDB(envVariables)
+	if err != nil {
+		pLogger.Errorf("Failed to connect to Postgres: %v", err)
+		return
+	}
+	defer func() {
+		if err := postgresDB.Close(); err != nil {
+			pLogger.Errorf("Failed to close Postgres connection: %v", err)
+		}
+	}()
 	pLogger.Info("Connected to Postgres database")
+
 	pLogger.Info("Connecting to Redis database")
-	redisClient := infra.NewRedisClient(ctx, *envVariables)
+	redisClient, err := infra.NewRedisClient(ctx, *envVariables)
+	if err != nil {
+		pLogger.Errorf("Failed to connect to Redis: %v", err)
+		return
+	}
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			pLogger.Errorf("Failed to close Redis connection: %v", err)
+		}
+	}()
 	pLogger.Info("Connected to Redis database")
+
 	// Create dependencies
 	deps := AppDependencies{
 		Config:      envVariables,

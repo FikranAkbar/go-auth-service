@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"go-auth-service/pkg/logger"
 	"os"
 	"strings"
@@ -95,7 +96,7 @@ func (l *envLoader) opt(key, def string) string {
 	return v
 }
 
-func loadFromEnv() *Env {
+func loadFromEnv() (*Env, error) {
 	l := &envLoader{}
 
 	cfg := &Env{
@@ -136,10 +137,10 @@ func loadFromEnv() *Env {
 	}
 
 	if len(l.errors) > 0 {
-		logger.Fatalf("Missing required environment variables: %s", strings.Join(l.errors, ", "))
+		return nil, fmt.Errorf("missing required environment variables: %s", strings.Join(l.errors, ", "))
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func LoadServiceEnvironmentVariables() *Env {
@@ -148,13 +149,34 @@ func LoadServiceEnvironmentVariables() *Env {
 	)
 
 	if !fileExists(configPath) {
-		return loadFromEnv()
+		cfg, err := loadFromEnv()
+		if err != nil {
+			logger.Error(err.Error())
+			return nil
+		}
+		return cfg
 	}
 
-	cfg := loadFromYAML(configPath)
-	initializeServerConfig(cfg)
-	initializeDatabaseConfig(cfg)
-	initializeJWTConfig(cfg)
+	cfg, err := loadFromYAML(configPath)
+	if err != nil {
+		logger.Error(err.Error())
+		return nil
+	}
+
+	if err := initializeServerConfig(cfg); err != nil {
+		logger.Error(err.Error())
+		return nil
+	}
+
+	if err := initializeDatabaseConfig(cfg); err != nil {
+		logger.Error(err.Error())
+		return nil
+	}
+
+	if err := initializeJWTConfig(cfg); err != nil {
+		logger.Error(err.Error())
+		return nil
+	}
 
 	return cfg
 }
@@ -168,10 +190,10 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-func loadFromYAML(path string) *Env {
+func loadFromYAML(path string) (*Env, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		logger.Fatalf("Error loading config file %s: %s", path, err)
+		return nil, fmt.Errorf("error loading config file %s: %s", path, err)
 	}
 
 	// Expand environment variables if present (e.g., ${JWT_SECRET_KEY})
@@ -180,60 +202,64 @@ func loadFromYAML(path string) *Env {
 
 	var cfg Env
 	if err := yaml.Unmarshal([]byte(dataStr), &cfg); err != nil {
-		logger.Fatalf("Error loading config file %s: %s", path, err)
+		return nil, fmt.Errorf("error parsing config file %s: %s", path, err)
 	}
 
-	return &cfg
+	return &cfg, nil
 }
 
-func initializeServerConfig(cfg *Env) {
+func initializeServerConfig(cfg *Env) error {
 	var (
 		err error
 	)
 
 	cfg.Server.ReadHeaderTimeout, err = time.ParseDuration(cfg.Server.ReadHeaderTimeoutDuration)
 	if err != nil {
-		logger.Fatalf("Failed to parse read header timeout duration: %v", err)
+		return fmt.Errorf("failed to parse read header timeout duration: %v", err)
 	}
 
 	cfg.Server.ReadTimeout, err = time.ParseDuration(cfg.Server.ReadTimeoutDuration)
 	if err != nil {
-		logger.Fatalf("Failed to parse read timeout duration: %v", err)
+		return fmt.Errorf("failed to parse read timeout duration: %v", err)
 	}
 
 	cfg.Server.WriteTimeout, err = time.ParseDuration(cfg.Server.WriteTimeoutDuration)
 	if err != nil {
-		logger.Fatalf("Failed to parse write timeout duration: %v", err)
+		return fmt.Errorf("failed to parse write timeout duration: %v", err)
 	}
 
 	cfg.Server.IdleTimeout, err = time.ParseDuration(cfg.Server.IdleTimeoutDuration)
 	if err != nil {
-		logger.Fatalf("Failed to parse idle timeout duration: %v", err)
+		return fmt.Errorf("failed to parse idle timeout duration: %v", err)
 	}
+
+	return nil
 }
 
-func initializeDatabaseConfig(cfg *Env) {
+func initializeDatabaseConfig(cfg *Env) error {
 	var (
 		err error
 	)
 
 	cfg.Database.MaxConnectionLifetime, err = time.ParseDuration(cfg.Database.MaxConnectionLifetimeDuration)
 	if err != nil {
-		logger.Fatalf("Failed to parse max connection lifetime duration: %v", err)
+		return fmt.Errorf("failed to parse max connection lifetime duration: %v", err)
 	}
 
 	cfg.Database.MaxIdleConnectionLifetime, err = time.ParseDuration(cfg.Database.MaxIdleConnectionLifetimeDuration)
 	if err != nil {
-		logger.Fatalf("Failed to parse max idle connection lifetime duration: %v", err)
+		return fmt.Errorf("failed to parse max idle connection lifetime duration: %v", err)
 	}
+
+	return nil
 }
 
-func initializeJWTConfig(cfg *Env) {
+func initializeJWTConfig(cfg *Env) error {
 	var err error
 
 	// Validate secret key
 	if cfg.JWT.SecretKey == "" {
-		logger.Fatal("JWT secret key is required. Set it in config.yaml")
+		return fmt.Errorf("JWT secret key is required. Set it in config.yaml")
 	}
 
 	if len(cfg.JWT.SecretKey) < 32 {
@@ -243,17 +269,19 @@ func initializeJWTConfig(cfg *Env) {
 	// Parse access token expiry
 	cfg.JWT.AccessTokenExpiry, err = time.ParseDuration(cfg.JWT.AccessTokenExpiryStr)
 	if err != nil {
-		logger.Fatalf("Failed to parse JWT access token expiry duration: %v", err)
+		return fmt.Errorf("failed to parse JWT access token expiry duration: %v", err)
 	}
 
 	// Parse refresh token expiry
 	cfg.JWT.RefreshTokenExpiry, err = time.ParseDuration(cfg.JWT.RefreshTokenExpiryStr)
 	if err != nil {
-		logger.Fatalf("Failed to parse JWT refresh token expiry duration: %v", err)
+		return fmt.Errorf("failed to parse JWT refresh token expiry duration: %v", err)
 	}
 
 	// Set default issuer if not provided
 	if cfg.JWT.Issuer == "" {
 		cfg.JWT.Issuer = "go-auth-service"
 	}
+
+	return nil
 }

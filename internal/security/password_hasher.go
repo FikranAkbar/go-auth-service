@@ -27,13 +27,6 @@ func NewPasswordHasher(cost int) *PasswordHasher {
 	}
 }
 
-// NewPasswordHasherWithDefaultCost creates hasher with bcrypt default cost (10)
-func NewPasswordHasherWithDefaultCost() *PasswordHasher {
-	return &PasswordHasher{
-		cost: bcrypt.DefaultCost, // 10
-	}
-}
-
 // HashPassword hashes a plain text password using bcrypt
 func (ph *PasswordHasher) HashPassword(password string) (string, error) {
 	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), ph.cost)

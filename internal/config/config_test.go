@@ -689,3 +689,393 @@ func TestLoadFromEnv_WithCustomOptionalValues(t *testing.T) {
 		t.Errorf("Expected custom app URL, got %s", cfg.App.URL)
 	}
 }
+func TestLoadFromEnv_MissingRequiredVars(t *testing.T) {
+	// Clear all env vars to test missing required vars
+	envVars := []string{
+		"DB_HOST", "DB_NAME", "DB_USERNAME", "DB_PASSWORD",
+		"REDIS_HOST", "REDIS_PASSWORD", "JWT_SECRET_KEY", "JWT_ISSUER",
+	}
+	for _, v := range envVars {
+		_ = os.Unsetenv(v)
+	}
+	cfg, err := loadFromEnv()
+	if err == nil {
+		t.Fatal("Expected error for missing required env vars, got nil")
+	}
+	if cfg != nil {
+		t.Error("Expected nil config when env vars are missing")
+	}
+	if err.Error() == "" {
+		t.Error("Expected error message about missing env vars")
+	}
+}
+func TestLoadServiceEnvironmentVariables_MissingEnvVars(t *testing.T) {
+	// Clear all env vars
+	envVars := []string{
+		"DB_HOST", "DB_NAME", "DB_USERNAME", "DB_PASSWORD",
+		"REDIS_HOST", "REDIS_PASSWORD", "JWT_SECRET_KEY", "JWT_ISSUER",
+	}
+	for _, v := range envVars {
+		_ = os.Unsetenv(v)
+	}
+	// Change to temp directory (no config.yaml)
+	tmpDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	_ = os.Chdir(tmpDir)
+	// Should return nil due to missing env vars
+	cfg := LoadServiceEnvironmentVariables()
+	if cfg != nil {
+		t.Error("Expected nil config when required env vars are missing")
+	}
+}
+func TestLoadServiceEnvironmentVariables_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	// Invalid YAML content
+	invalidYAML := `
+server:
+  port: ":8080"
+  invalid yaml syntax here: [
+`
+	err := os.WriteFile(configPath, []byte(invalidYAML), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	_ = os.Chdir(tmpDir)
+	cfg := LoadServiceEnvironmentVariables()
+	if cfg != nil {
+		t.Error("Expected nil config for invalid YAML")
+	}
+}
+func TestLoadServiceEnvironmentVariables_InvalidServerConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  port: ":8080"
+  read_header_timeout_duration: "invalid"
+  read_timeout_duration: "30s"
+  write_timeout_duration: "30s"
+  idle_timeout_duration: "60s"
+database:
+  type: postgres
+  host: localhost
+  port: "5432"
+  name: testdb
+  username: testuser
+  password: testpass
+  max_idle_connections: "10"
+  max_open_connections: "100"
+  max_idle_connection_lifetime: "5m"
+  max_connection_lifetime: "30m"
+redis:
+  host: localhost
+  port: "6379"
+  password: ""
+jwt:
+  secret_key: test-secret-key-at-least-32-characters-long
+  access_token_expiry: 15m
+  refresh_token_expiry: 168h
+  issuer: test-service
+`
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	_ = os.Chdir(tmpDir)
+	cfg := LoadServiceEnvironmentVariables()
+	if cfg != nil {
+		t.Error("Expected nil config for invalid server timeout duration")
+	}
+}
+func TestLoadServiceEnvironmentVariables_InvalidDatabaseConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  port: ":8080"
+  read_header_timeout_duration: "10s"
+  read_timeout_duration: "30s"
+  write_timeout_duration: "30s"
+  idle_timeout_duration: "60s"
+database:
+  type: postgres
+  host: localhost
+  port: "5432"
+  name: testdb
+  username: testuser
+  password: testpass
+  max_idle_connections: "10"
+  max_open_connections: "100"
+  max_idle_connection_lifetime: "invalid"
+  max_connection_lifetime: "30m"
+redis:
+  host: localhost
+  port: "6379"
+  password: ""
+jwt:
+  secret_key: test-secret-key-at-least-32-characters-long
+  access_token_expiry: 15m
+  refresh_token_expiry: 168h
+  issuer: test-service
+`
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	_ = os.Chdir(tmpDir)
+	cfg := LoadServiceEnvironmentVariables()
+	if cfg != nil {
+		t.Error("Expected nil config for invalid database connection lifetime")
+	}
+}
+func TestLoadServiceEnvironmentVariables_InvalidJWTConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  port: ":8080"
+  read_header_timeout_duration: "10s"
+  read_timeout_duration: "30s"
+  write_timeout_duration: "30s"
+  idle_timeout_duration: "60s"
+database:
+  type: postgres
+  host: localhost
+  port: "5432"
+  name: testdb
+  username: testuser
+  password: testpass
+  max_idle_connections: "10"
+  max_open_connections: "100"
+  max_idle_connection_lifetime: "5m"
+  max_connection_lifetime: "30m"
+redis:
+  host: localhost
+  port: "6379"
+  password: ""
+jwt:
+  secret_key: ""
+  access_token_expiry: 15m
+  refresh_token_expiry: 168h
+  issuer: test-service
+`
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+	oldWd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWd) }()
+	_ = os.Chdir(tmpDir)
+	cfg := LoadServiceEnvironmentVariables()
+	if cfg != nil {
+		t.Error("Expected nil config for empty JWT secret key")
+	}
+}
+func TestLoadFromYAML_FileNotFound(t *testing.T) {
+	cfg, err := loadFromYAML("/nonexistent/path/config.yaml")
+	if err == nil {
+		t.Fatal("Expected error for non-existent file, got nil")
+	}
+	if cfg != nil {
+		t.Error("Expected nil config for non-existent file")
+	}
+}
+func TestLoadFromYAML_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	// Invalid YAML syntax
+	invalidYAML := `
+server:
+  port: ":8080"
+  invalid: [unclosed bracket
+`
+	err := os.WriteFile(configPath, []byte(invalidYAML), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+	cfg, err := loadFromYAML(configPath)
+	if err == nil {
+		t.Fatal("Expected error for invalid YAML, got nil")
+	}
+	if cfg != nil {
+		t.Error("Expected nil config for invalid YAML")
+	}
+}
+func TestInitializeServerConfig_AllInvalidDurations(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       *Env
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name: "Invalid ReadHeaderTimeout",
+			cfg: &Env{
+				Server: ServerConfig{
+					ReadHeaderTimeoutDuration: "invalid",
+					ReadTimeoutDuration:       "30s",
+					WriteTimeoutDuration:      "30s",
+					IdleTimeoutDuration:       "60s",
+				},
+			},
+			expectErr: true,
+			errMsg:    "read header timeout",
+		},
+		{
+			name: "Invalid ReadTimeout",
+			cfg: &Env{
+				Server: ServerConfig{
+					ReadHeaderTimeoutDuration: "10s",
+					ReadTimeoutDuration:       "not-a-duration",
+					WriteTimeoutDuration:      "30s",
+					IdleTimeoutDuration:       "60s",
+				},
+			},
+			expectErr: true,
+			errMsg:    "read timeout",
+		},
+		{
+			name: "Invalid WriteTimeout",
+			cfg: &Env{
+				Server: ServerConfig{
+					ReadHeaderTimeoutDuration: "10s",
+					ReadTimeoutDuration:       "30s",
+					WriteTimeoutDuration:      "xyz",
+					IdleTimeoutDuration:       "60s",
+				},
+			},
+			expectErr: true,
+			errMsg:    "write timeout",
+		},
+		{
+			name: "Invalid IdleTimeout",
+			cfg: &Env{
+				Server: ServerConfig{
+					ReadHeaderTimeoutDuration: "10s",
+					ReadTimeoutDuration:       "30s",
+					WriteTimeoutDuration:      "30s",
+					IdleTimeoutDuration:       "bad-duration",
+				},
+			},
+			expectErr: true,
+			errMsg:    "idle timeout",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := initializeServerConfig(tt.cfg)
+			if tt.expectErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if !tt.expectErr && err != nil {
+				t.Errorf("Expected no error, got %v", err)
+			}
+		})
+	}
+}
+func TestInitializeDatabaseConfig_AllInvalidDurations(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       *Env
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name: "Invalid MaxConnectionLifetime",
+			cfg: &Env{
+				Database: DatabaseConfig{
+					MaxConnectionLifetimeDuration:     "not-valid",
+					MaxIdleConnectionLifetimeDuration: "5m",
+				},
+			},
+			expectErr: true,
+			errMsg:    "max connection lifetime",
+		},
+		{
+			name: "Invalid MaxIdleConnectionLifetime",
+			cfg: &Env{
+				Database: DatabaseConfig{
+					MaxConnectionLifetimeDuration:     "30m",
+					MaxIdleConnectionLifetimeDuration: "bad",
+				},
+			},
+			expectErr: true,
+			errMsg:    "max idle connection lifetime",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := initializeDatabaseConfig(tt.cfg)
+			if tt.expectErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if !tt.expectErr && err != nil {
+				t.Errorf("Expected no error, got %v", err)
+			}
+		})
+	}
+}
+func TestInitializeJWTConfig_AllInvalidCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       *Env
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name: "Empty SecretKey",
+			cfg: &Env{
+				JWT: JWTConfig{
+					SecretKey:             "",
+					AccessTokenExpiryStr:  "15m",
+					RefreshTokenExpiryStr: "168h",
+				},
+			},
+			expectErr: true,
+			errMsg:    "secret key is required",
+		},
+		{
+			name: "Invalid AccessTokenExpiry",
+			cfg: &Env{
+				JWT: JWTConfig{
+					SecretKey:             "valid-secret-key-at-least-32-characters-long",
+					AccessTokenExpiryStr:  "not-a-duration",
+					RefreshTokenExpiryStr: "168h",
+				},
+			},
+			expectErr: true,
+			errMsg:    "access token expiry",
+		},
+		{
+			name: "Invalid RefreshTokenExpiry",
+			cfg: &Env{
+				JWT: JWTConfig{
+					SecretKey:             "valid-secret-key-at-least-32-characters-long",
+					AccessTokenExpiryStr:  "15m",
+					RefreshTokenExpiryStr: "invalid",
+				},
+			},
+			expectErr: true,
+			errMsg:    "refresh token expiry",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := initializeJWTConfig(tt.cfg)
+			if tt.expectErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if !tt.expectErr && err != nil {
+				t.Errorf("Expected no error, got %v", err)
+			}
+		})
+	}
+}

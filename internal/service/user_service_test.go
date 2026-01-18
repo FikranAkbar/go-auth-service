@@ -153,6 +153,31 @@ func TestUserService_ValidateEmail(t *testing.T) {
 			email:   "",
 			wantErr: true,
 		},
+		{
+			name:    "invalid email - too long (>100 chars)",
+			email:   strings.Repeat("a", 91) + "@example.com",
+			wantErr: true,
+		},
+		{
+			name:    "invalid email - only whitespace",
+			email:   "   ",
+			wantErr: true,
+		},
+		{
+			name:    "invalid email - missing domain",
+			email:   "test@",
+			wantErr: true,
+		},
+		{
+			name:    "invalid email - no TLD",
+			email:   "test@example",
+			wantErr: true,
+		},
+		{
+			name:    "valid email - with trimming",
+			email:   "  test@example.com  ",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -161,6 +186,145 @@ func TestUserService_ValidateEmail(t *testing.T) {
 			// For demonstration, we test RegisterUser which calls validateEmail
 			ctx := context.Background()
 			_, err := userService.RegisterUser(ctx, tt.email, "validuser", "validpass123")
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RegisterUser() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// Test validateUsername through RegisterUser
+func TestUserService_ValidateUsername(t *testing.T) {
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, nil
+		},
+		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
+			return false, nil
+		},
+	}
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	tests := []struct {
+		name     string
+		username string
+		wantErr  bool
+	}{
+		{
+			name:     "valid username",
+			username: "validuser",
+			wantErr:  false,
+		},
+		{
+			name:     "valid username - exactly 3 chars",
+			username: "abc",
+			wantErr:  false,
+		},
+		{
+			name:     "valid username - exactly 50 chars",
+			username: strings.Repeat("a", 50),
+			wantErr:  false,
+		},
+		{
+			name:     "invalid username - empty",
+			username: "",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid username - only whitespace",
+			username: "   ",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid username - too short (2 chars)",
+			username: "ab",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid username - too long (51 chars)",
+			username: strings.Repeat("a", 51),
+			wantErr:  true,
+		},
+		{
+			name:     "valid username - with trimming",
+			username: "  validuser  ",
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			_, err := userService.RegisterUser(ctx, "valid@example.com", tt.username, "validpass123")
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RegisterUser() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// Test validatePassword through RegisterUser
+func TestUserService_ValidatePassword(t *testing.T) {
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, nil
+		},
+		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
+			return false, nil
+		},
+	}
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	tests := []struct {
+		name     string
+		password string
+		wantErr  bool
+	}{
+		{
+			name:     "valid password",
+			password: "validpass123",
+			wantErr:  false,
+		},
+		{
+			name:     "valid password - exactly 8 chars",
+			password: "12345678",
+			wantErr:  false,
+		},
+		{
+			name:     "valid password - exactly 128 chars",
+			password: strings.Repeat("a", 128),
+			wantErr:  false,
+		},
+		{
+			name:     "invalid password - empty",
+			password: "",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid password - too short (7 chars)",
+			password: "1234567",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid password - too long (129 chars)",
+			password: strings.Repeat("a", 129),
+			wantErr:  true,
+		},
+		{
+			name:     "valid password - complex with special chars",
+			password: "P@ssw0rd!123",
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			_, err := userService.RegisterUser(ctx, "valid@example.com", "validuser", tt.password)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RegisterUser() error = %v, wantErr %v", err, tt.wantErr)
@@ -475,85 +639,6 @@ func TestUserService_VerifyPassword(t *testing.T) {
 	}
 }
 
-// Test validateUsername edge cases
-func TestUserService_ValidateUsername(t *testing.T) {
-	mockRepo := &MockUserRepository{
-		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
-			return false, nil
-		},
-		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
-			return false, nil
-		},
-	}
-	mockHasher := &MockPasswordHasher{}
-	userService := service.NewUserService(mockRepo, mockHasher)
-
-	tests := []struct {
-		name      string
-		username  string
-		shouldErr bool
-	}{
-		{"valid username", "testuser", false},
-		{"min length username", "abc", false},
-		{"max length username", strings.Repeat("a", 50), false},
-		{"too short username", "ab", true},
-		{"too long username", strings.Repeat("a", 51), true},
-		{"empty username", "", true},
-		{"whitespace only", "   ", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := userService.RegisterUser(context.Background(), "test@example.com", tt.username, "password123")
-			if tt.shouldErr && err == nil {
-				t.Error("Expected error but got none")
-			}
-			if !tt.shouldErr && err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			}
-		})
-	}
-}
-
-// Test validatePassword edge cases
-func TestUserService_ValidatePassword(t *testing.T) {
-	mockRepo := &MockUserRepository{
-		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
-			return false, nil
-		},
-		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
-			return false, nil
-		},
-	}
-	mockHasher := &MockPasswordHasher{}
-	userService := service.NewUserService(mockRepo, mockHasher)
-
-	tests := []struct {
-		name      string
-		password  string
-		shouldErr bool
-	}{
-		{"valid password", "password123", false},
-		{"min length password", "12345678", false},
-		{"max length password", strings.Repeat("a", 128), false},
-		{"too short password", "1234567", true},
-		{"too long password", strings.Repeat("a", 129), true},
-		{"empty password", "", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := userService.RegisterUser(context.Background(), "test@example.com", "testuser", tt.password)
-			if tt.shouldErr && err == nil {
-				t.Error("Expected error but got none")
-			}
-			if !tt.shouldErr && err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			}
-		})
-	}
-}
-
 // Test BeginTx
 func TestUserService_BeginTx(t *testing.T) {
 	expectedTx := &mockTransaction{}
@@ -688,6 +773,47 @@ func TestUserService_RegisterUser_CreateUserFails(t *testing.T) {
 	}
 }
 
+// Test RegisterUser when ExistsByEmail query fails
+func TestUserService_RegisterUser_ExistsByEmailQueryFails(t *testing.T) {
+	expectedErr := errors.New("database query error")
+
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, expectedErr // Query fails
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	_, err := userService.RegisterUser(context.Background(), "test@example.com", "testuser", "password123")
+	if err == nil {
+		t.Error("Expected error when ExistsByEmail query fails")
+	}
+}
+
+// Test RegisterUser when ExistsByUsername query fails
+func TestUserService_RegisterUser_ExistsByUsernameQueryFails(t *testing.T) {
+	expectedErr := errors.New("database query error")
+
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, nil // Email check succeeds
+		},
+		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
+			return false, expectedErr // Username query fails
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	_, err := userService.RegisterUser(context.Background(), "test@example.com", "testuser", "password123")
+	if err == nil {
+		t.Error("Expected error when ExistsByUsername query fails")
+	}
+}
+
 // Test RegisterUserTx with email exists error
 func TestUserService_RegisterUserTx_EmailExists(t *testing.T) {
 	mockTx := &mockTransaction{}
@@ -783,6 +909,140 @@ func TestUserService_RegisterUserTx_CreateUserTxFails(t *testing.T) {
 	}
 }
 
+// Test RegisterUserTx when ExistsByEmail query fails
+func TestUserService_RegisterUserTx_ExistsByEmailQueryFails(t *testing.T) {
+	mockTx := &mockTransaction{}
+	expectedErr := errors.New("database query error")
+
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, expectedErr // Query fails
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	_, err := userService.RegisterUserTx(context.Background(), mockTx, "test@example.com", "testuser", "password123")
+	if err == nil {
+		t.Error("Expected error when ExistsByEmail query fails")
+	}
+}
+
+// Test RegisterUserTx when ExistsByUsername query fails
+func TestUserService_RegisterUserTx_ExistsByUsernameQueryFails(t *testing.T) {
+	mockTx := &mockTransaction{}
+	expectedErr := errors.New("database query error")
+
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, nil // Email check succeeds
+		},
+		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
+			return false, expectedErr // Username query fails
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	_, err := userService.RegisterUserTx(context.Background(), mockTx, "test@example.com", "testuser", "password123")
+	if err == nil {
+		t.Error("Expected error when ExistsByUsername query fails")
+	}
+}
+
+// Test RegisterUserTx with invalid email validation
+func TestUserService_RegisterUserTx_InvalidEmail(t *testing.T) {
+	mockTx := &mockTransaction{}
+	mockRepo := &MockUserRepository{}
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	tests := []struct {
+		name  string
+		email string
+	}{
+		{"empty email", ""},
+		{"invalid email format", "notanemail"},
+		{"email too long", strings.Repeat("a", 91) + "@example.com"},
+		{"email missing domain", "test@"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := userService.RegisterUserTx(context.Background(), mockTx, tt.email, "validuser", "password123")
+			if err == nil {
+				t.Errorf("Expected error for %s", tt.name)
+			}
+		})
+	}
+}
+
+// Test RegisterUserTx with invalid username validation
+func TestUserService_RegisterUserTx_InvalidUsername(t *testing.T) {
+	mockTx := &mockTransaction{}
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, nil
+		},
+	}
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	tests := []struct {
+		name     string
+		username string
+	}{
+		{"empty username", ""},
+		{"username too short", "ab"},
+		{"username too long", strings.Repeat("a", 51)},
+		{"whitespace only", "   "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := userService.RegisterUserTx(context.Background(), mockTx, "valid@example.com", tt.username, "password123")
+			if err == nil {
+				t.Errorf("Expected error for %s", tt.name)
+			}
+		})
+	}
+}
+
+// Test RegisterUserTx with invalid password validation
+func TestUserService_RegisterUserTx_InvalidPassword(t *testing.T) {
+	mockTx := &mockTransaction{}
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, nil
+		},
+		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
+			return false, nil
+		},
+	}
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	tests := []struct {
+		name     string
+		password string
+	}{
+		{"empty password", ""},
+		{"password too short", "1234567"},
+		{"password too long", strings.Repeat("a", 129)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := userService.RegisterUserTx(context.Background(), mockTx, "valid@example.com", "validuser", tt.password)
+			if err == nil {
+				t.Errorf("Expected error for %s", tt.name)
+			}
+		})
+	}
+}
+
 // Test VerifyEmail with UpdateUser failure
 func TestUserService_VerifyEmail_UpdateUserFails(t *testing.T) {
 	expectedErr := errors.New("update failed")
@@ -842,5 +1102,164 @@ func TestUserService_ValidateEmail_AdditionalCases(t *testing.T) {
 				t.Error("Expected error but got none")
 			}
 		})
+	}
+}
+
+// Test GetUserByID with error path
+func TestUserService_GetUserByID_NotFound(t *testing.T) {
+	expectedErr := errors.New("user not found")
+
+	mockRepo := &MockUserRepository{
+		FindUserByIDFunc: func(ctx context.Context, id int64) (*user.User, error) {
+			return nil, expectedErr
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	_, err := userService.GetUserByID(context.Background(), 999)
+	if err == nil {
+		t.Error("Expected error when user not found")
+	}
+}
+
+// Test GetUserByEmail with error path
+func TestUserService_GetUserByEmail_NotFound(t *testing.T) {
+	expectedErr := errors.New("user not found")
+
+	mockRepo := &MockUserRepository{
+		FindUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			return nil, expectedErr
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	_, err := userService.GetUserByEmail(context.Background(), "notfound@example.com")
+	if err == nil {
+		t.Error("Expected error when user not found")
+	}
+}
+
+// Test UpdateUser with error path
+func TestUserService_UpdateUser_Error(t *testing.T) {
+	expectedErr := errors.New("update failed")
+
+	mockRepo := &MockUserRepository{
+		UpdateUserFunc: func(ctx context.Context, u *user.User) error {
+			return expectedErr
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	testUser := &user.User{ID: 123, Email: "test@example.com"}
+	err := userService.UpdateUser(context.Background(), testUser)
+	if err == nil {
+		t.Error("Expected error from UpdateUser")
+	}
+}
+
+// Test DeleteUser with error path
+func TestUserService_DeleteUser_Error(t *testing.T) {
+	expectedErr := errors.New("delete failed")
+
+	mockRepo := &MockUserRepository{
+		DeleteUserFunc: func(ctx context.Context, id int64) error {
+			return expectedErr
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	err := userService.DeleteUser(context.Background(), 123)
+	if err == nil {
+		t.Error("Expected error from DeleteUser")
+	}
+}
+
+// Test BeginTx with error path
+func TestUserService_BeginTx_Error(t *testing.T) {
+	expectedErr := errors.New("transaction failed")
+
+	mockRepo := &MockUserRepository{
+		BeginTxFunc: func(ctx context.Context) (domainRepository.TransactionInterface, error) {
+			return nil, expectedErr
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	_, err := userService.BeginTx(context.Background())
+	if err == nil {
+		t.Error("Expected error from BeginTx")
+	}
+}
+
+// Test VerifyEmail with FindUserByID error
+func TestUserService_VerifyEmail_FindUserError(t *testing.T) {
+	expectedErr := errors.New("database error")
+
+	mockRepo := &MockUserRepository{
+		FindUserByIDFunc: func(ctx context.Context, id int64) (*user.User, error) {
+			return nil, expectedErr
+		},
+	}
+
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	err := userService.VerifyEmail(context.Background(), 123)
+	if err == nil {
+		t.Error("Expected error when FindUserByID fails")
+	}
+}
+
+// Test all validation error types explicitly
+func TestUserService_ValidationErrors_Explicit(t *testing.T) {
+	mockRepo := &MockUserRepository{
+		ExistsByEmailFunc: func(ctx context.Context, email string) (bool, error) {
+			return false, nil
+		},
+		ExistsByUsernameFunc: func(ctx context.Context, username string) (bool, error) {
+			return false, nil
+		},
+	}
+	mockHasher := &MockPasswordHasher{}
+	userService := service.NewUserService(mockRepo, mockHasher)
+
+	// Test empty email
+	_, err := userService.RegisterUser(context.Background(), "", "user", "pass1234")
+	if err == nil {
+		t.Error("Expected error for empty email")
+	}
+
+	// Test empty username
+	_, err = userService.RegisterUser(context.Background(), "test@test.com", "", "pass1234")
+	if err == nil {
+		t.Error("Expected error for empty username")
+	}
+
+	// Test empty password
+	_, err = userService.RegisterUser(context.Background(), "test@test.com", "user", "")
+	if err == nil {
+		t.Error("Expected error for empty password")
+	}
+
+	// Test username with only whitespace
+	_, err = userService.RegisterUser(context.Background(), "test@test.com", "   ", "pass1234")
+	if err == nil {
+		t.Error("Expected error for whitespace-only username")
+	}
+
+	// Test email with only whitespace
+	_, err = userService.RegisterUser(context.Background(), "   ", "user", "pass1234")
+	if err == nil {
+		t.Error("Expected error for whitespace-only email")
 	}
 }

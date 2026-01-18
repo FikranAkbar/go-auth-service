@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"database/sql"
+	"go-auth-service/internal/domain/repository"
 	domainSecurity "go-auth-service/internal/domain/security"
 	"go-auth-service/internal/domain/user"
 	appErrors "go-auth-service/pkg/errors"
@@ -23,7 +23,7 @@ func NewUserService(userRepo user.RepositoryInterface, passwordHasher domainSecu
 }
 
 // BeginTx starts a new database transaction
-func (s *UserService) BeginTx(ctx context.Context) (*sql.Tx, error) {
+func (s *UserService) BeginTx(ctx context.Context) (repository.TransactionInterface, error) {
 	return s.userRepository.BeginTx(ctx)
 }
 
@@ -86,7 +86,7 @@ func (s *UserService) RegisterUser(ctx context.Context, email, username, passwor
 
 // RegisterUserTx creates a new user account within a transaction
 // This allows the caller to rollback if subsequent operations fail
-func (s *UserService) RegisterUserTx(ctx context.Context, tx *sql.Tx, email, username, password string) (*user.User, error) {
+func (s *UserService) RegisterUserTx(ctx context.Context, tx repository.TransactionInterface, email, username, password string) (*user.User, error) {
 	// Validate email
 	if err := s.validateEmail(email); err != nil {
 		return nil, err

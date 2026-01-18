@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"go-auth-service/internal/domain/auth"
 	"go-auth-service/internal/domain/email"
 	domainRepository "go-auth-service/internal/domain/repository"
@@ -41,7 +40,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, email, username, passwor
 	if err != nil {
 		return 0, "", err
 	}
-	defer func(tx *sql.Tx) { _ = tx.Rollback() }(tx) // Auto-rollback if not committed
+	defer func() { _ = tx.Rollback() }() // Auto-rollback if not committed
 
 	// Register user within transaction
 	newUser, err := s.userService.RegisterUserTx(ctx, tx, email, username, password)

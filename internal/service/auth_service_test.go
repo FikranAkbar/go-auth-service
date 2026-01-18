@@ -15,8 +15,8 @@ import (
 
 // Mock User Service
 type MockUserService struct {
-	BeginTxFunc        func(ctx context.Context) (*sql.Tx, error)
-	RegisterUserTxFunc func(ctx context.Context, tx *sql.Tx, email, username, password string) (*user.User, error)
+	BeginTxFunc        func(ctx context.Context) (domainRepository.TransactionInterface, error)
+	RegisterUserTxFunc func(ctx context.Context, tx domainRepository.TransactionInterface, email, username, password string) (*user.User, error)
 	GetUserByEmailFunc func(ctx context.Context, email string) (*user.User, error)
 	GetUserByIDFunc    func(ctx context.Context, userID int64) (*user.User, error)
 	VerifyEmailFunc    func(ctx context.Context, userID int64) error
@@ -26,14 +26,14 @@ type MockUserService struct {
 	RegisterUserFunc   func(ctx context.Context, email, username, password string) (*user.User, error)
 }
 
-func (m *MockUserService) BeginTx(ctx context.Context) (*sql.Tx, error) {
+func (m *MockUserService) BeginTx(ctx context.Context) (domainRepository.TransactionInterface, error) {
 	if m.BeginTxFunc != nil {
 		return m.BeginTxFunc(ctx)
 	}
-	return nil, nil
+	return NewMockTransaction(), nil
 }
 
-func (m *MockUserService) RegisterUserTx(ctx context.Context, tx *sql.Tx, email, username, password string) (*user.User, error) {
+func (m *MockUserService) RegisterUserTx(ctx context.Context, tx domainRepository.TransactionInterface, email, username, password string) (*user.User, error) {
 	if m.RegisterUserTxFunc != nil {
 		return m.RegisterUserTxFunc(ctx, tx, email, username, password)
 	}
@@ -181,19 +181,58 @@ func (m *MockTokenRepository) GetRefreshToken(ctx context.Context, userID int64)
 	return nil, nil
 }
 
-// Tests for RegisterUser
-// TODO: These tests require integration with a real database or better transaction mocking
-// Skipping for now as they fail with nil transaction panics
+// MockTransaction implements repository.TransactionInterface for testing
+type MockTransaction struct {
+	commitCalled   bool
+	rollbackCalled bool
+	commitError    error
+	rollbackError  error
+	sqlTx          *sql.Tx // Store the actual sql.Tx for RegisterUserTx calls
+}
+
+func NewMockTransaction() *MockTransaction {
+	return &MockTransaction{
+		sqlTx: &sql.Tx{}, // This will be a zero value but non-nil
+	}
+}
+
+func (mt *MockTransaction) Commit() error {
+	mt.commitCalled = true
+	return mt.commitError
+}
+
+func (mt *MockTransaction) Rollback() error {
+	mt.rollbackCalled = true
+	return mt.rollbackError
+}
+
+func (mt *MockTransaction) SetCommitError(err error) {
+	mt.commitError = err
+}
+
+func (mt *MockTransaction) SetRollbackError(err error) {
+	mt.rollbackError = err
+}
+
+// GetSqlTx returns the underlying *sql.Tx for type assertion in RegisterUser
+func (mt *MockTransaction) GetSqlTx() *sql.Tx {
+	return mt.sqlTx
+}
+
+// Ensure MockTransaction implements the interface
+var _ domainRepository.TransactionInterface = (*MockTransaction)(nil)
+
+// Tests for RegisterUser - Using mock transactions
 func TestAuthService_RegisterUser_Success(t *testing.T) {
-	t.Skip("Skipping: requires real database transaction")
 	ctx := context.Background()
+	mockTx := NewMockTransaction()
+	emailSent := false
 
 	mockUserService := &MockUserService{
-		BeginTxFunc: func(ctx context.Context) (*sql.Tx, error) {
-			// Return nil for testing - the mock RegisterUserTx won't actually use it
-			return nil, nil
+		BeginTxFunc: func(ctx context.Context) (domainRepository.TransactionInterface, error) {
+			return mockTx, nil
 		},
-		RegisterUserTxFunc: func(ctx context.Context, tx *sql.Tx, email, username, password string) (*user.User, error) {
+		RegisterUserTxFunc: func(ctx context.Context, tx domainRepository.TransactionInterface, email, username, password string) (*user.User, error) {
 			return &user.User{
 				ID:       1,
 				Email:    email,
@@ -203,7 +242,15 @@ func TestAuthService_RegisterUser_Success(t *testing.T) {
 		},
 	}
 
-	mockEmailService := &MockEmailService{}
+	mockEmailService := &MockEmailService{
+		SendVerificationEmailFunc: func(to, token string) error {
+			if !mockTx.commitCalled {
+				t.Error("Email should be sent after commit")
+			}
+			emailSent = true
+			return nil
+		},
+	}
 	mockJWTManager := &MockJWTManager{}
 	mockTokenRepo := &MockTokenRepository{}
 
@@ -212,7 +259,7 @@ func TestAuthService_RegisterUser_Success(t *testing.T) {
 	userID, email, err := authService.RegisterUser(ctx, "test@example.com", "testuser", "password123")
 
 	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+		t.Fatalf("Expected no error, got %v", err)
 	}
 	if userID != 1 {
 		t.Errorf("Expected userID 1, got %d", userID)
@@ -220,15 +267,20 @@ func TestAuthService_RegisterUser_Success(t *testing.T) {
 	if email != "test@example.com" {
 		t.Errorf("Expected email test@example.com, got %s", email)
 	}
+	if !emailSent {
+		t.Error("Expected email to be sent")
+	}
+	if !mockTx.commitCalled {
+		t.Error("Expected transaction to be committed")
+	}
 }
 
 func TestAuthService_RegisterUser_BeginTxFails(t *testing.T) {
-	t.Skip("Skipping: requires real database transaction")
 	ctx := context.Background()
 	expectedErr := errors.New("begin tx failed")
 
 	mockUserService := &MockUserService{
-		BeginTxFunc: func(ctx context.Context) (*sql.Tx, error) {
+		BeginTxFunc: func(ctx context.Context) (domainRepository.TransactionInterface, error) {
 			return nil, expectedErr
 		},
 	}
@@ -243,15 +295,15 @@ func TestAuthService_RegisterUser_BeginTxFails(t *testing.T) {
 }
 
 func TestAuthService_RegisterUser_RegisterUserTxFails(t *testing.T) {
-	t.Skip("Skipping: requires real database transaction")
 	ctx := context.Background()
 	expectedErr := appErrors.ErrEmailAlreadyExists
+	mockTx := NewMockTransaction()
 
 	mockUserService := &MockUserService{
-		BeginTxFunc: func(ctx context.Context) (*sql.Tx, error) {
-			return nil, nil
+		BeginTxFunc: func(ctx context.Context) (domainRepository.TransactionInterface, error) {
+			return mockTx, nil
 		},
-		RegisterUserTxFunc: func(ctx context.Context, tx *sql.Tx, email, username, password string) (*user.User, error) {
+		RegisterUserTxFunc: func(ctx context.Context, tx domainRepository.TransactionInterface, email, username, password string) (*user.User, error) {
 			return nil, expectedErr
 		},
 	}
@@ -266,15 +318,15 @@ func TestAuthService_RegisterUser_RegisterUserTxFails(t *testing.T) {
 }
 
 func TestAuthService_RegisterUser_GenerateTokenFails(t *testing.T) {
-	t.Skip("Skipping: requires real database transaction")
 	ctx := context.Background()
 	expectedErr := errors.New("token generation failed")
+	mockTx := NewMockTransaction()
 
 	mockUserService := &MockUserService{
-		BeginTxFunc: func(ctx context.Context) (*sql.Tx, error) {
-			return nil, nil
+		BeginTxFunc: func(ctx context.Context) (domainRepository.TransactionInterface, error) {
+			return mockTx, nil
 		},
-		RegisterUserTxFunc: func(ctx context.Context, tx *sql.Tx, email, username, password string) (*user.User, error) {
+		RegisterUserTxFunc: func(ctx context.Context, tx domainRepository.TransactionInterface, email, username, password string) (*user.User, error) {
 			return &user.User{ID: 1, Email: email, Username: username}, nil
 		},
 	}
@@ -294,16 +346,40 @@ func TestAuthService_RegisterUser_GenerateTokenFails(t *testing.T) {
 	}
 }
 
-func TestAuthService_RegisterUser_SendEmailFails(t *testing.T) {
-	t.Skip("Skipping: requires real database transaction")
+func TestAuthService_RegisterUser_CommitFails(t *testing.T) {
 	ctx := context.Background()
-	expectedErr := errors.New("email send failed")
+	expectedErr := errors.New("commit failed")
+	mockTx := NewMockTransaction()
+	mockTx.SetCommitError(expectedErr)
 
 	mockUserService := &MockUserService{
-		BeginTxFunc: func(ctx context.Context) (*sql.Tx, error) {
-			return nil, nil
+		BeginTxFunc: func(ctx context.Context) (domainRepository.TransactionInterface, error) {
+			return mockTx, nil
 		},
-		RegisterUserTxFunc: func(ctx context.Context, tx *sql.Tx, email, username, password string) (*user.User, error) {
+		RegisterUserTxFunc: func(ctx context.Context, tx domainRepository.TransactionInterface, email, username, password string) (*user.User, error) {
+			return &user.User{ID: 1, Email: email, Username: username}, nil
+		},
+	}
+
+	authService := service.NewAuthService(mockUserService, &MockEmailService{}, &MockJWTManager{}, &MockTokenRepository{})
+
+	_, _, err := authService.RegisterUser(ctx, "test@example.com", "testuser", "password123")
+
+	if err != expectedErr {
+		t.Errorf("Expected error %v, got %v", expectedErr, err)
+	}
+}
+
+func TestAuthService_RegisterUser_SendEmailFails(t *testing.T) {
+	ctx := context.Background()
+	expectedErr := errors.New("email send failed")
+	mockTx := NewMockTransaction()
+
+	mockUserService := &MockUserService{
+		BeginTxFunc: func(ctx context.Context) (domainRepository.TransactionInterface, error) {
+			return mockTx, nil
+		},
+		RegisterUserTxFunc: func(ctx context.Context, tx domainRepository.TransactionInterface, email, username, password string) (*user.User, error) {
 			return &user.User{ID: 1, Email: email, Username: username}, nil
 		},
 	}
@@ -320,6 +396,10 @@ func TestAuthService_RegisterUser_SendEmailFails(t *testing.T) {
 
 	if err != expectedErr {
 		t.Errorf("Expected error %v, got %v", expectedErr, err)
+	}
+
+	if !mockTx.commitCalled {
+		t.Error("Transaction should be committed even if email fails")
 	}
 }
 
@@ -474,6 +554,45 @@ func TestAuthService_Login_GenerateAccessTokenFails(t *testing.T) {
 	}
 }
 
+func TestAuthService_Login_GenerateRefreshTokenFails(t *testing.T) {
+	ctx := context.Background()
+	expectedErr := errors.New("refresh token generation failed")
+
+	mockUser := &user.User{
+		ID:           1,
+		Email:        "test@example.com",
+		Username:     "testuser",
+		PasswordHash: "hashed_password",
+		IsActive:     true,
+	}
+
+	mockUserService := &MockUserService{
+		GetUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			return mockUser, nil
+		},
+		VerifyPasswordFunc: func(hashedPassword, password string) error {
+			return nil
+		},
+	}
+
+	mockJWTManager := &MockJWTManager{
+		GenerateAccessTokenFunc: func(userID int64, email, username string) (string, error) {
+			return "access-token", nil
+		},
+		GenerateRefreshTokenFunc: func(userID int64, email, username string) (string, error) {
+			return "", expectedErr
+		},
+	}
+
+	authService := service.NewAuthService(mockUserService, &MockEmailService{}, mockJWTManager, &MockTokenRepository{})
+
+	_, _, _, err := authService.Login(ctx, "test@example.com", "password123")
+
+	if err != expectedErr {
+		t.Errorf("Expected error %v, got %v", expectedErr, err)
+	}
+}
+
 func TestAuthService_Login_StoreRefreshTokenFails(t *testing.T) {
 	ctx := context.Background()
 	expectedErr := errors.New("redis storage failed")
@@ -564,6 +683,28 @@ func TestAuthService_VerifyEmail_VerificationFails(t *testing.T) {
 	}
 }
 
+func TestAuthService_VerifyEmail_GetUserByIDFails(t *testing.T) {
+	ctx := context.Background()
+	expectedErr := errors.New("failed to get user")
+
+	mockUserService := &MockUserService{
+		VerifyEmailFunc: func(ctx context.Context, userID int64) error {
+			return nil // Verification succeeds
+		},
+		GetUserByIDFunc: func(ctx context.Context, userID int64) (*user.User, error) {
+			return nil, expectedErr // But getting user fails
+		},
+	}
+
+	authService := service.NewAuthService(mockUserService, &MockEmailService{}, &MockJWTManager{}, &MockTokenRepository{})
+
+	_, err := authService.VerifyEmail(ctx, 1)
+
+	if err != expectedErr {
+		t.Errorf("Expected error %v, got %v", expectedErr, err)
+	}
+}
+
 // Tests for ResendVerificationEmail
 func TestAuthService_ResendVerificationEmail_Success(t *testing.T) {
 	ctx := context.Background()
@@ -631,6 +772,70 @@ func TestAuthService_ResendVerificationEmail_UserAlreadyVerified(t *testing.T) {
 
 	if err != appErrors.ErrUserAlreadyVerified {
 		t.Errorf("Expected ErrUserAlreadyVerified, got %v", err)
+	}
+}
+
+func TestAuthService_ResendVerificationEmail_TokenGenerationFails(t *testing.T) {
+	ctx := context.Background()
+	expectedErr := errors.New("token generation failed")
+
+	mockUser := &user.User{
+		ID:       1,
+		Email:    "test@example.com",
+		Username: "testuser",
+		IsActive: false,
+	}
+
+	mockUserService := &MockUserService{
+		GetUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			return mockUser, nil
+		},
+	}
+
+	mockJWTManager := &MockJWTManager{
+		GenerateVerificationTokenFunc: func(userID int64, email string) (string, error) {
+			return "", expectedErr
+		},
+	}
+
+	authService := service.NewAuthService(mockUserService, &MockEmailService{}, mockJWTManager, &MockTokenRepository{})
+
+	err := authService.ResendVerificationEmail(ctx, "test@example.com")
+
+	if err == nil {
+		t.Error("Expected error when token generation fails")
+	}
+}
+
+func TestAuthService_ResendVerificationEmail_EmailSendFails(t *testing.T) {
+	ctx := context.Background()
+	expectedErr := errors.New("email send failed")
+
+	mockUser := &user.User{
+		ID:       1,
+		Email:    "test@example.com",
+		Username: "testuser",
+		IsActive: false,
+	}
+
+	mockUserService := &MockUserService{
+		GetUserByEmailFunc: func(ctx context.Context, email string) (*user.User, error) {
+			return mockUser, nil
+		},
+	}
+
+	mockEmailService := &MockEmailService{
+		SendVerificationEmailFunc: func(to, token string) error {
+			return expectedErr
+		},
+	}
+
+	authService := service.NewAuthService(mockUserService, mockEmailService, &MockJWTManager{}, &MockTokenRepository{})
+
+	err := authService.ResendVerificationEmail(ctx, "test@example.com")
+
+	if err == nil {
+		t.Error("Expected error when email send fails")
 	}
 }
 
@@ -740,6 +945,41 @@ func TestAuthService_RefreshToken_RedisValidationFails(t *testing.T) {
 
 	if err != appErrors.ErrInvalidToken {
 		t.Errorf("Expected ErrInvalidToken, got %v", err)
+	}
+}
+
+func TestAuthService_RefreshToken_GenerateAccessTokenFails(t *testing.T) {
+	ctx := context.Background()
+	expectedErr := errors.New("access token generation failed")
+
+	mockClaims := &domainSecurity.Claims{
+		UserID:   1,
+		Email:    "test@example.com",
+		Username: "testuser",
+		Type:     domainSecurity.RefreshToken,
+	}
+
+	mockJWTManager := &MockJWTManager{
+		ValidateTokenFunc: func(tokenString string) (*domainSecurity.Claims, error) {
+			return mockClaims, nil
+		},
+		GenerateAccessTokenFunc: func(userID int64, email, username string) (string, error) {
+			return "", expectedErr
+		},
+	}
+
+	mockTokenRepo := &MockTokenRepository{
+		ValidateRefreshTokenFunc: func(ctx context.Context, userID int64, token string) (bool, error) {
+			return true, nil
+		},
+	}
+
+	authService := service.NewAuthService(&MockUserService{}, &MockEmailService{}, mockJWTManager, mockTokenRepo)
+
+	_, err := authService.RefreshToken(ctx, "valid-refresh-token")
+
+	if err != expectedErr {
+		t.Errorf("Expected error %v, got %v", expectedErr, err)
 	}
 }
 

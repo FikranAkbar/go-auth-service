@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	domainRepository "go-auth-service/internal/domain/repository"
 	"go-auth-service/internal/domain/user"
 	appErrors "go-auth-service/pkg/errors"
 
@@ -20,7 +21,7 @@ func NewUserRepository(db *sql.DB, redisClient *redis.Client) *UserRepository {
 }
 
 // BeginTx starts a new database transaction
-func (r *UserRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+func (r *UserRepository) BeginTx(ctx context.Context) (domainRepository.TransactionInterface, error) {
 	return r.Db.BeginTx(ctx, nil)
 }
 
@@ -49,14 +50,20 @@ func (r *UserRepository) CreateUser(ctx context.Context, u *user.User) error {
 }
 
 // CreateUserTx creates a new user within a transaction
-func (r *UserRepository) CreateUserTx(ctx context.Context, tx *sql.Tx, u *user.User) error {
+func (r *UserRepository) CreateUserTx(ctx context.Context, tx domainRepository.TransactionInterface, u *user.User) error {
+	// Type assert to *sql.Tx since we need it for QueryRowContext
+	sqlTx, ok := tx.(*sql.Tx)
+	if !ok {
+		return errors.New("invalid transaction type")
+	}
+
 	query := `
 		INSERT INTO users (email, username, password_hash, is_active, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, NOW(), NOW())
 		RETURNING id, created_at, updated_at
 	`
 
-	err := tx.QueryRowContext(
+	err := sqlTx.QueryRowContext(
 		ctx,
 		query,
 		u.Email,

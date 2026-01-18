@@ -3,15 +3,14 @@ package service
 import (
 	"fmt"
 	"go-auth-service/internal/domain/email"
-	"go-auth-service/internal/infra"
 )
 
 type EmailService struct {
-	emailClient *infra.EmailClient
+	emailClient email.ClientInterface
 	appURL      string
 }
 
-func NewEmailService(emailClient *infra.EmailClient, appURL string) *EmailService {
+func NewEmailService(emailClient email.ClientInterface, appURL string) *EmailService {
 	return &EmailService{
 		emailClient: emailClient,
 		appURL:      appURL,

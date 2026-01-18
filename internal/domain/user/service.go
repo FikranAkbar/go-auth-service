@@ -2,21 +2,19 @@ package user
 
 import (
 	"context"
-	"database/sql"
+	"go-auth-service/internal/domain/repository"
 )
 
 // ServiceInterface defines the contract for user business logic.
-// This interface allows the handler layer to work with different service implementations,
-// making the code testable by enabling mock services in tests.
 type ServiceInterface interface {
 	// BeginTx starts a new database transaction
-	BeginTx(ctx context.Context) (*sql.Tx, error)
+	BeginTx(ctx context.Context) (repository.TransactionInterface, error)
 
 	// RegisterUser creates a new user account
 	RegisterUser(ctx context.Context, email, username, password string) (*User, error)
 
 	// RegisterUserTx creates a new user account within a transaction
-	RegisterUserTx(ctx context.Context, tx *sql.Tx, email, username, password string) (*User, error)
+	RegisterUserTx(ctx context.Context, tx repository.TransactionInterface, email, username, password string) (*User, error)
 
 	// GetUserByID retrieves a user by their ID
 	GetUserByID(ctx context.Context, userID int64) (*User, error)
